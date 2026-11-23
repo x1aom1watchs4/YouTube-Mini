@@ -1,0 +1,216 @@
+<template>
+  <div class="page">
+    <div class="top">
+      <text class="brand">YouTube Mini</text>
+      <text class="version">0.1 • WATCH</text>
+    </div>
+
+    <div class="connection">
+      <div class="status-dot {{connected ? 'online' : 'offline'}}"></div>
+      <text class="status">{{connectionLabel}}</text>
+    </div>
+
+    <div class="hero">
+      <text class="eyebrow">ВАША МУЗЫКА И ВИДЕО</text>
+      <text class="headline">Видео рядом.</text>
+      <text class="sub">Выберите ролик на телефоне и отправьте его на часы.</text>
+    </div>
+
+    <div class="video-card">
+      <text class="video-label">СЕЙЧАС ВЫБРАНО</text>
+      <text class="video-title">{{videoTitle}}</text>
+      <text class="video-sub">{{videoSubtitle}}</text>
+      <div class="controls">
+        <text class="control" onclick="sendPause">Ⅱ</text>
+        <text class="control primary" onclick="sendPlay">▶</text>
+        <text class="control" onclick="sendStop">■</text>
+      </div>
+      <text class="hint">{{playbackHint}}</text>
+    </div>
+
+    <div class="bottom">
+      <text class="retry" onclick="retryConnection">ПРОВЕРИТЬ СВЯЗЬ</text>
+      <text class="foot">Телефон ↔ часы</text>
+    </div>
+  </div>
+</template>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #090b10;
+  padding: 28px;
+  flex-direction: column;
+}
+.top {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: bold;
+}
+.version {
+  color: #858b98;
+  font-size: 13px;
+}
+.connection {
+  margin-top: 22px;
+  height: 38px;
+  border-radius: 20px;
+  background-color: #171b24;
+  flex-direction: row;
+  align-items: center;
+  padding-left: 14px;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  margin-right: 9px;
+}
+.online { background-color: #38d996; }
+.offline { background-color: #ff6b6b; }
+.status {
+  color: #dce1e9;
+  font-size: 15px;
+}
+.hero {
+  margin-top: 34px;
+  flex-direction: column;
+}
+.eyebrow {
+  color: #8e9aaf;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.headline {
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: bold;
+  margin-top: 8px;
+}
+.sub {
+  color: #a7afbd;
+  font-size: 16px;
+  margin-top: 8px;
+  line-height: 23px;
+}
+.video-card {
+  margin-top: 28px;
+  padding: 18px;
+  border-radius: 22px;
+  background-color: #171b24;
+  flex-direction: column;
+}
+.video-label {
+  color: #8e9aaf;
+  font-size: 12px;
+}
+.video-title {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+.video-sub {
+  color: #a7afbd;
+  font-size: 14px;
+  margin-top: 5px;
+}
+.controls {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+.control {
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background-color: #292f3b;
+  color: #ffffff;
+  font-size: 23px;
+  text-align: center;
+  padding-top: 12px;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+.primary {
+  background-color: #ff3347;
+}
+.hint {
+  color: #8e9aaf;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 14px;
+}
+.bottom {
+  margin-top: 22px;
+  align-items: center;
+}
+.retry {
+  color: #ffffff;
+  background-color: #303847;
+  border-radius: 18px;
+  padding: 12px 20px;
+  font-size: 13px;
+}
+.foot {
+  color: #717b8d;
+  font-size: 12px;
+  margin-top: 10px;
+}
+</style>
+
+<script>
+import link from '../../common/scripts/interconnect'
+
+export default {
+  private: {
+    connected: false,
+    connectionLabel: 'Нет соединения',
+    videoTitle: 'Пока ничего не выбрано',
+    videoSubtitle: 'Откройте YouTube Mini на телефоне',
+    playbackHint: 'Плеер часов пока проверяется'
+  },
+  onInit() {
+    this.unsubscribeLink = link.subscribe((event) => {
+      if (event.message && event.message.type === 'video.select') {
+        const payload = event.message.payload || {}
+        this.videoTitle = payload.title || 'Видео выбрано'
+        this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
+      }
+      if (event.state) {
+        this.connected = event.state === 'connected'
+        this.connectionLabel = this.connected ? 'Телефон подключён' : 'Нет соединения'
+      }
+    })
+    link.checkConnection()
+  },
+  onDestroy() {
+    if (this.unsubscribeLink) this.unsubscribeLink()
+  },
+  retryConnection() {
+    link.checkConnection()
+  },
+  sendPlay() {
+    if (!link.send('playback.command', { action: 'play' })) {
+      this.connectionLabel = 'Нет соединения'
+    }
+  },
+  sendPause() {
+    if (!link.send('playback.command', { action: 'pause' })) {
+      this.connectionLabel = 'Нет соединения'
+    }
+  },
+  sendStop() {
+    if (!link.send('playback.command', { action: 'stop' })) {
+      this.connectionLabel = 'Нет соединения'
+    }
+  }
+}
+</script>

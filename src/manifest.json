@@ -5,7 +5,7 @@
   "versionName": "0.1.0",
   "versionCode": 1,
   "minPlatformVersion": 1200,
-  "minAPILevel": 1,
+  "minAPILevel": 2,
   "deviceTypeList": [
     "watch"
   ],

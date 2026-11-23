@@ -2,6 +2,8 @@ package com.x1aom1watchs4.youtubemini;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -33,6 +35,16 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean activityResumed;
+    private boolean nodeQueryInFlight;
+    private final Runnable connectionCheck = new Runnable() {
+        @Override public void run() {
+            if (!activityResumed) return;
+            refreshWearable();
+            mainHandler.postDelayed(this, 15000L);
+        }
+    };
     private NodeApi nodeApi;
     private MessageApi messageApi;
     private Node activeNode;
@@ -93,11 +105,23 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        activityResumed = true;
+        mainHandler.removeCallbacks(connectionCheck);
         refreshWearable();
+        mainHandler.postDelayed(connectionCheck, 15000L);
+    }
+
+    @Override
+    protected void onPause() {
+        activityResumed = false;
+        mainHandler.removeCallbacks(connectionCheck);
+        super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        activityResumed = false;
+        mainHandler.removeCallbacks(connectionCheck);
         io.shutdownNow();
         if (messageApi != null && !listeningNodeId.isEmpty()) {
             messageApi.removeListener(listeningNodeId);
@@ -212,40 +236,72 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshWearable() {
-        if (nodeApi == null || messageApi == null) return;
+        if (nodeApi == null || messageApi == null || nodeQueryInFlight) return;
+        nodeQueryInFlight = true;
         status.setText("Проверяем связь с часами…");
         nodeApi.getConnectedNodes()
             .addOnSuccessListener(nodes -> {
+                nodeQueryInFlight = false;
                 if (nodes == null || nodes.isEmpty()) {
-                    if (!listeningNodeId.isEmpty()) messageApi.removeListener(listeningNodeId);
+                    if (!listeningNodeId.isEmpty()) {
+                        messageApi.removeListener(listeningNodeId);
+                    }
                     activeNode = null;
                     listeningNodeId = "";
                     status.setText("Нет соединения");
                     return;
                 }
-                Node nextNode = nodes.get(0);
-                if (activeNode != null && !activeNode.id.equals(nextNode.id)) {
-                    messageApi.removeListener(activeNode.id);
+
+                Node nextNode = null;
+                if (activeNode != null) {
+                    for (Node candidate : nodes) {
+                        if (candidate != null && activeNode.id.equals(candidate.id)) {
+                            nextNode = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (nextNode == null) {
+                    for (Node candidate : nodes) {
+                        if (candidate != null && candidate.id != null && !candidate.id.isEmpty()) {
+                            nextNode = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (nextNode == null) {
+                    activeNode = null;
+                    status.setText("Нет соединения");
+                    return;
+                }
+
+                String nextId = nextNode.id;
+                if (!listeningNodeId.isEmpty() && !listeningNodeId.equals(nextId)) {
+                    messageApi.removeListener(listeningNodeId);
                     listeningNodeId = "";
                 }
                 activeNode = nextNode;
-                if (activeNode.id.equals(listeningNodeId)) {
+                if (nextId.equals(listeningNodeId)) {
                     status.setText("Часы подключены");
                     return;
                 }
-                final String nodeId = activeNode.id;
-                messageApi.addListener(nodeId, messageListener)
+
+                messageApi.addListener(nextId, messageListener)
                     .addOnSuccessListener(unused -> {
-                        listeningNodeId = nodeId;
+                        listeningNodeId = nextId;
                         runOnUiThread(() -> status.setText("Часы подключены"));
                     })
                     .addOnFailureListener(error ->
                         runOnUiThread(() -> status.setText("Ошибка связи: " + safe(error)))
                     );
             })
-            .addOnFailureListener(error ->
-                runOnUiThread(() -> status.setText("Нет соединения: " + safe(error)))
-            );
+            .addOnFailureListener(error -> {
+                nodeQueryInFlight = false;
+                runOnUiThread(() -> {
+                    status.setText("Нет соединения");
+                    playbackStatus.setText("Проверка связи не удалась: " + safe(error));
+                });
+            });
     }
 
     private void searchVideos() {

@@ -1,47 +1,42 @@
 # YouTube Mini 0.1
 
-A research-stage companion project for Xiaomi Watch S4 (Vela) and Android.
+A Xiaomi Watch S4 (Vela) + Android companion prototype.
 
-## Current status
+## Current implementation
 
-This repository was empty when work began. The first milestone is to verify the supported Vela app installation path and the watch/phone communication channel before implementing playback.
+- Vela watch app shell with a connection indicator and explicit **Нет соединения** state.
+- Watch-to-phone interconnect client using Xiaomi's `@system.interconnect`.
+- Lightweight on-watch QWERTY input for sending search queries to the phone.
+- Android companion project under `phone/`.
+- Phone-side YouTube Data API v3 search (the user supplies an API key; it is not stored).
+- Video metadata selection and playback-control message scaffolding in both directions.
 
-## Target experience
+## Platform communication
 
-- Search and select a YouTube video on the phone or watch.
-- Send the selected video's metadata to the watch.
-- Show playback controls on both devices.
-- Display an explicit **No connection** state when the companion link closes.
-- Use 240p as the initial quality target where a supported playback path exists.
-- Prefer stability and bounded resource use over aggressive feature removal.
+The transport is Xiaomi XMS Wearable / Vela Interconnect, not a hand-written BLE socket. The Vela runtime automatically manages the paired-app connection. The watch app registers `onopen`, `onclose`, `onerror`, and `onmessage` handlers and uses `diagnosis()` for a user-requested connection check.
 
-## Confirmed Vela communication API
+The official Xiaomi sample is:
 
-The official Vela API for communication with the paired Android companion app is `@system.interconnect`:
+https://github.com/open-vela/packages_apps/tree/dev/wearable/interconnect_image_demo
 
-- `interconnect.instance()` returns the app connection singleton.
-- `getReadyState()` reports connected/disconnected.
-- `onopen`, `onclose`, and `onerror` report connection changes.
-- `send()` and `onmessage` provide bidirectional messages.
+The Android side uses the XMS Wearable AAR from that demo. See [phone setup](phone/README.md).
 
-The official documentation requires the Vela Quick App package name to match the Android companion package name, and the signing identity to match as well. This must be configured deliberately; do not ship placeholder signing material.
+The Android `applicationId` and Vela manifest `package` must match exactly. Both packages must be signed with the same certificate. Never commit private keys, certificates, signing passwords, or API keys.
 
-Reference: https://iot.mi.com/vela/quickapp/en/features/network/interconnect.html
+## Important playback limitation
 
-## Important platform limitation
+The current code transfers video metadata and playback commands only. It does **not** yet play video on the watch. A supported Vela video surface/decoder and a permitted YouTube playback integration have not been verified on the actual Xiaomi Watch S4. Do not treat the current play/pause buttons as a working media player until that real-device milestone passes.
 
-Xiaomi's Watch S4 FAQ says third-party apps are not officially supported for ordinary users. Vela documentation does describe a developer/debug installation route, but access and installation on the target retail watch must be verified.
+The phone search uses the official YouTube Data API v3 search endpoint. API quota and YouTube API policies apply. No media streams are extracted, proxied, or relayed.
 
-The Vela sample catalogue documents an audio/music player, not a general video player. Therefore direct YouTube video rendering on the watch is **not yet confirmed**. Do not claim playback works until a real-device test proves that a supported video surface/decoder exists.
+## Build status
 
-## Planned milestones
+Source files have been committed, but no APK or RPK has been built or tested in this environment. The Android build requires the Xiaomi AAR and a locally configured Android SDK. Vela packaging requires AIoT-IDE / aiot-toolkit and a matching local signing setup.
 
-1. Verify Vela Quick App installation and launch on the actual Watch S4.
-2. Port the existing proven interconnect implementation from WristBook / Vers AI after those sources are available.
-3. Build and test a minimal phone-watch handshake and connection-state UI.
-4. Verify an allowed video playback path on the watch before implementing YouTube search/playback.
-5. Add search, selection, metadata transfer, and synchronized playback controls.
+## Next milestones
 
-## Source needed
-
-The WristBook and/or Vers AI repository URL is needed to reuse the exact existing companion communication implementation instead of guessing its message protocol or Android setup.
+1. Add the Xiaomi AAR locally and build the Android companion.
+2. Package the Vela RPK with the same application ID and matching signing certificate.
+3. Test bidirectional search and command exchange on a paired Watch S4.
+4. Verify whether direct video rendering is supported on the watch.
+5. Only then implement and test actual playback, buffering, and 240p quality selection.

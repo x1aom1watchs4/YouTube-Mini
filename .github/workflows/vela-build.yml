@@ -40,13 +40,13 @@ jobs:
         with:
           repository: open-vela/packages_apps
           ref: dev
-          path: /tmp/open-vela-sdk
+          path: open-vela-sdk
           sparse-checkout: wearable/interconnect_image_demo/android_program/libs/xms-wearable-lib_1.4_release.aar
           sparse-checkout-cone-mode: false
       - name: Install SDK library
         run: |
           mkdir -p phone/app/libs
-          cp /tmp/open-vela-sdk/wearable/interconnect_image_demo/android_program/libs/xms-wearable-lib_1.4_release.aar phone/app/libs/
+          cp open-vela-sdk/wearable/interconnect_image_demo/android_program/libs/xms-wearable-lib_1.4_release.aar phone/app/libs/
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -13,7 +13,7 @@ A Xiaomi Watch S4 (Vela) + Android companion prototype.
 
 ## Platform communication
 
-The transport is Xiaomi XMS Wearable / Vela Interconnect, not a hand-written BLE socket. The Vela runtime automatically manages the paired-app connection. The watch app registers `onopen`, `onclose`, `onerror`, and `onmessage` handlers and uses `diagnosis()` for a user-requested connection check.
+The transport is Xiaomi XMS Wearable / Vela Interconnect, not a hand-written BLE socket. The Vela runtime automatically manages the paired-app connection. The watch app registers `onopen`, `onclose`, `onerror`, and `onmessage` handlers and uses `diagnosis()` for a connection check. The Android app uses the same `Wearable` / `NodeApi` / `MessageApi` pattern as the existing companion project.
 
 The official Xiaomi sample is:
 
@@ -25,7 +25,7 @@ The Android `applicationId` and Vela manifest `package` must match exactly. Both
 
 ## Important playback limitation
 
-The current code transfers video metadata and playback commands only. It does **not** yet play video on the watch. A supported Vela video surface/decoder and a permitted YouTube playback integration have not been verified on the actual Xiaomi Watch S4. Do not treat the current play/pause buttons as a working media player until that real-device milestone passes.
+The current code transfers video metadata and playback-command messages only. The Android app reports incoming commands but does not control a media session, and the watch has no verified video-rendering implementation yet. A Vela sample player exists for audio, but that alone does not prove video playback support. Do not treat the current play/pause buttons as a working media player.
 
 The phone search uses the official YouTube Data API v3 search endpoint. API quota and YouTube API policies apply. No media streams are extracted, proxied, or relayed.
 

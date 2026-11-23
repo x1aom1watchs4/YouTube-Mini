@@ -39,6 +39,7 @@ public final class MainActivity extends Activity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean activityResumed;
     private boolean nodeQueryInFlight;
+    private boolean listenerRegistrationInFlight;
     private final Runnable connectionCheck = new Runnable() {
         @Override public void run() {
             if (!activityResumed) return;
@@ -251,6 +252,7 @@ public final class MainActivity extends Activity {
                     }
                     activeNode = null;
                     listeningNodeId = "";
+                    listenerRegistrationInFlight = false;
                     permissionRequestNodeId = "";
                     launchRequestedNodeId = "";
                     status.setText("Нет соединения");
@@ -291,16 +293,31 @@ public final class MainActivity extends Activity {
                     authorizeAndOpenWatch(selectedNode);
                     return;
                 }
+                // A slow SDK callback must not cause duplicate addListener requests
+                // on the next 15-second connection poll.
+                if (listenerRegistrationInFlight) return;
 
-                messageApi.addListener(nextId, messageListener)
-                    .addOnSuccessListener(unused -> {
-                        listeningNodeId = nextId;
-                        runOnUiThread(() -> status.setText("Часы найдены. Проверяем разрешение…"));
-                        authorizeAndOpenWatch(selectedNode);
-                    })
-                    .addOnFailureListener(error ->
-                        runOnUiThread(() -> status.setText("Не удалось включить приём сообщений: " + safe(error)))
-                    );
+                listenerRegistrationInFlight = true;
+                try {
+                    messageApi.addListener(nextId, messageListener)
+                        .addOnSuccessListener(unused -> {
+                            listenerRegistrationInFlight = false;
+                            listeningNodeId = nextId;
+                            runOnUiThread(() -> status.setText("Часы найдены. Проверяем разрешение…"));
+                            authorizeAndOpenWatch(selectedNode);
+                        })
+                        .addOnFailureListener(error -> {
+                            listenerRegistrationInFlight = false;
+                            runOnUiThread(() -> status.setText(
+                                "Не удалось включить приём сообщений: " + safe(error)
+                            ));
+                        });
+                } catch (Exception error) {
+                    listenerRegistrationInFlight = false;
+                    runOnUiThread(() -> status.setText(
+                        "Ошибка включения приёма сообщений: " + safe(error)
+                    ));
+                }
             })
             .addOnFailureListener(error -> {
                 nodeQueryInFlight = false;

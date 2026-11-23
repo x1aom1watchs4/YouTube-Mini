@@ -34,7 +34,7 @@ public final class MainActivity extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private NodeApi nodeApi;
     private MessageApi messageApi;
-    private Node activeNode;
+    private Node activeNode;\n    private String listeningNodeId = "";
     private TextView status;
     private TextView playbackStatus;
     private EditText apiKey;
@@ -218,11 +218,22 @@ public final class MainActivity extends Activity {
                     status.setText("Нет соединения");
                     return;
                 }
-                activeNode = nodes.get(0);
-                messageApi.addListener(activeNode.id, messageListener)
-                    .addOnSuccessListener(unused ->
-                        runOnUiThread(() -> status.setText("Часы подключены"))
-                    )
+                Node nextNode = nodes.get(0);
+                if (activeNode != null && !activeNode.id.equals(nextNode.id)) {
+                    messageApi.removeListener(activeNode.id);
+                    listeningNodeId = "";
+                }
+                activeNode = nextNode;
+                if (activeNode.id.equals(listeningNodeId)) {
+                    status.setText("Часы подключены");
+                    return;
+                }
+                final String nodeId = activeNode.id;
+                messageApi.addListener(nodeId, messageListener)
+                    .addOnSuccessListener(unused -> {
+                        listeningNodeId = nodeId;
+                        runOnUiThread(() -> status.setText("Часы подключены"));
+                    })
                     .addOnFailureListener(error ->
                         runOnUiThread(() -> status.setText("Ошибка связи: " + safe(error)))
                     );

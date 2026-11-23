@@ -280,14 +280,15 @@ public final class MainActivity extends Activity {
                     return;
                 }
 
-                String nextId = nextNode.id;
+                final Node selectedNode = nextNode;
+                String nextId = selectedNode.id;
                 if (!listeningNodeId.isEmpty() && !listeningNodeId.equals(nextId)) {
                     messageApi.removeListener(listeningNodeId);
                     listeningNodeId = "";
                 }
-                activeNode = nextNode;
+                activeNode = selectedNode;
                 if (nextId.equals(listeningNodeId)) {
-                    authorizeAndOpenWatch(nextNode);
+                    authorizeAndOpenWatch(selectedNode);
                     return;
                 }
 

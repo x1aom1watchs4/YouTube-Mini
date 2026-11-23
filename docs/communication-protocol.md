@@ -8,7 +8,7 @@ Status: draft. This is an application-level message contract for the official Ve
 - `connecting`: show a neutral connecting indicator only while an explicit user-initiated connection attempt is in progress.
 - `connected`: enable transfer and remote controls.
 
-No automatic reconnect is performed. A user may tap **Повторить подключение** to initiate another attempt.
+Vela manages establishment and lifecycle of the paired-app interconnect automatically. The app does not run its own reconnect loop. The **Проверить связь** button explicitly runs the documented connection diagnosis and refreshes the visible state.
 
 ## Message envelope
 

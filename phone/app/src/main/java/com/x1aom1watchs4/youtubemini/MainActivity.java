@@ -8,7 +8,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.TextView;\nimport android.text.InputType;
+import android.widget.TextView;
+import android.text.InputType;
 
 import com.xiaomi.xms.wearable.Wearable;
 import com.xiaomi.xms.wearable.message.MessageApi;
@@ -34,7 +35,8 @@ public final class MainActivity extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private NodeApi nodeApi;
     private MessageApi messageApi;
-    private Node activeNode;\n    private String listeningNodeId = "";
+    private Node activeNode;
+    private String listeningNodeId = "";
     private TextView status;
     private TextView playbackStatus;
     private EditText apiKey;
@@ -71,7 +73,8 @@ public final class MainActivity extends Activity {
                             playbackStatus.setText("На часах выбрано: " + title);
                         });
                     } else if ("video.search".equals(type)) {
-                        searchVideosForWatch(payload.optString("query", ""), nodeId);
+                        final String query = payload.optString("query", "");
+                        runOnUiThread(() -> searchVideosForWatch(query, nodeId));
                     }
                 } catch (Exception ignored) {
                     // Ignore malformed or unrelated messages.
@@ -85,7 +88,6 @@ public final class MainActivity extends Activity {
         buildUi();
         nodeApi = Wearable.getNodeApi(getApplicationContext());
         messageApi = Wearable.getMessageApi(getApplicationContext());
-        refreshWearable();
     }
 
     @Override
@@ -97,8 +99,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         io.shutdownNow();
-        if (messageApi != null && activeNode != null) {
-            messageApi.removeListener(activeNode.id);
+        if (messageApi != null && !listeningNodeId.isEmpty()) {
+            messageApi.removeListener(listeningNodeId);
         }
         super.onDestroy();
     }
@@ -132,7 +134,8 @@ public final class MainActivity extends Activity {
         root.addView(searchHeading);
 
         apiKey = new EditText(this);
-        apiKey.setSingleLine(true);\n        apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        apiKey.setSingleLine(true);
+        apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         apiKey.setHint("YouTube Data API key (не сохраняется)");
         root.addView(apiKey);
 
@@ -214,7 +217,9 @@ public final class MainActivity extends Activity {
         nodeApi.getConnectedNodes()
             .addOnSuccessListener(nodes -> {
                 if (nodes == null || nodes.isEmpty()) {
+                    if (!listeningNodeId.isEmpty()) messageApi.removeListener(listeningNodeId);
                     activeNode = null;
+                    listeningNodeId = "";
                     status.setText("Нет соединения");
                     return;
                 }
@@ -414,7 +419,12 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static JSONObject put(JSONObject object, String key, Object value) {\n        try { object.put(key, value); } catch (Exception ignored) {}\n        return object;\n    }\n\n    private static String readAll(InputStream input) throws Exception {
+    private static JSONObject put(JSONObject object, String key, Object value) {
+        try { object.put(key, value); } catch (Exception ignored) {}
+        return object;
+    }
+
+    private static String readAll(InputStream input) throws Exception {
         if (input == null) return "";
         try (BufferedReader reader = new BufferedReader(
             new InputStreamReader(input, StandardCharsets.UTF_8))) {

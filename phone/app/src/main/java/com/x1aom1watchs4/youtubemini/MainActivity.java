@@ -54,13 +54,25 @@ public final class MainActivity extends Activity {
                         new String(message, StandardCharsets.UTF_8)
                     );
                     if (frame.optInt("v", 0) != 1) return;
-                    if (!"playback.command".equals(frame.optString("type"))) return;
+                    String type = frame.optString("type", "");
                     JSONObject payload = frame.optJSONObject("payload");
                     if (payload == null) return;
-                    final String action = payload.optString("action", "unknown");
-                    runOnUiThread(() ->
-                        playbackStatus.setText("Команда с часов: " + action)
-                    );
+                    if ("playback.command".equals(type)) {
+                        final String action = payload.optString("action", "unknown");
+                        runOnUiThread(() ->
+                            playbackStatus.setText("Команда с часов: " + action)
+                        );
+                    } else if ("video.select".equals(type)) {
+                        final String title = payload.optString("title", "Видео выбрано на часах");
+                        final String id = payload.optString("videoId", "");
+                        runOnUiThread(() -> {
+                            videoId.setText(id);
+                            videoTitle.setText(title);
+                            playbackStatus.setText("На часах выбрано: " + title);
+                        });
+                    } else if ("video.search".equals(type)) {
+                        searchVideosForWatch(payload.optString("query", ""), nodeId);
+                    }
                 } catch (Exception ignored) {
                     // Ignore malformed or unrelated messages.
                 }
@@ -230,31 +242,73 @@ public final class MainActivity extends Activity {
         status.setText("Ищем видео…");
         results.removeAllViews();
         io.execute(() -> {
-            HttpURLConnection connection = null;
             try {
-                String address = "https://www.googleapis.com/youtube/v3/search"
-                    + "?part=snippet&type=video&maxResults=10"
-                    + "&q=" + URLEncoder.encode(query, "UTF-8")
-                    + "&key=" + URLEncoder.encode(key, "UTF-8");
-                connection = (HttpURLConnection) new URL(address).openConnection();
-                connection.setConnectTimeout(8000);
-                connection.setReadTimeout(10000);
-                connection.setRequestMethod("GET");
-                int code = connection.getResponseCode();
-                InputStream stream = code >= 200 && code < 300
-                    ? connection.getInputStream() : connection.getErrorStream();
-                String body = readAll(stream);
-                if (code < 200 || code >= 300) {
-                    throw new IllegalStateException("YouTube API ответил: HTTP " + code);
-                }
-                JSONArray items = new JSONObject(body).optJSONArray("items");
+                JSONArray items = fetchVideoResults(query, key);
                 runOnUiThread(() -> showResults(items));
             } catch (Exception error) {
                 runOnUiThread(() -> status.setText("Поиск не удался: " + safe(error)));
-            } finally {
-                if (connection != null) connection.disconnect();
             }
         });
+    }
+
+    private void searchVideosForWatch(String query, String nodeId) {
+        String key = apiKey.getText().toString().trim();
+        if (query.trim().isEmpty() || key.isEmpty()) {
+            JSONObject error = put(new JSONObject(), "message",
+                "Введи YouTube API key в приложении телефона.");
+            sendToNode(nodeId, "video.search.error", error);
+            return;
+        }
+        io.execute(() -> {
+            try {
+                JSONArray found = fetchVideoResults(query, key);
+                JSONArray compact = new JSONArray();
+                for (int i = 0; i < found.length(); i++) {
+                    JSONObject item = found.optJSONObject(i);
+                    if (item == null) continue;
+                    JSONObject id = item.optJSONObject("id");
+                    JSONObject snippet = item.optJSONObject("snippet");
+                    if (id == null || snippet == null) continue;
+                    JSONObject thumbs = snippet.optJSONObject("thumbnails");
+                    JSONObject thumb = thumbs == null ? null : thumbs.optJSONObject("default");
+                    JSONObject video = new JSONObject();
+                    video.put("videoId", id.optString("videoId", ""));
+                    video.put("title", snippet.optString("title", "Видео"));
+                    video.put("channelTitle", snippet.optString("channelTitle", ""));
+                    video.put("thumbnailUrl", thumb == null ? "" : thumb.optString("url", ""));
+                    compact.put(video);
+                }
+                sendToNode(nodeId, "video.results", put(new JSONObject(), "items", compact));
+            } catch (Exception error) {
+                sendToNode(nodeId, "video.search.error",
+                    put(new JSONObject(), "message", safe(error)));
+            }
+        });
+    }
+
+    private JSONArray fetchVideoResults(String query, String key) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            String address = "https://www.googleapis.com/youtube/v3/search"
+                + "?part=snippet&type=video&maxResults=10"
+                + "&q=" + URLEncoder.encode(query, "UTF-8")
+                + "&key=" + URLEncoder.encode(key, "UTF-8");
+            connection = (HttpURLConnection) new URL(address).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(10000);
+            connection.setRequestMethod("GET");
+            int code = connection.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                ? connection.getInputStream() : connection.getErrorStream();
+            String body = readAll(stream);
+            if (code < 200 || code >= 300) {
+                throw new IllegalStateException("YouTube API ответил: HTTP " + code);
+            }
+            JSONArray items = new JSONObject(body).optJSONArray("items");
+            return items == null ? new JSONArray() : items;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
     }
 
     private void showResults(JSONArray items) {
@@ -322,17 +376,22 @@ public final class MainActivity extends Activity {
 
     private void send(String type, JSONObject payload) {
         Node node = activeNode;
-        if (node == null || messageApi == null) {
+        if (node == null) {
             status.setText("Нет соединения");
             return;
         }
+        sendToNode(node.id, type, payload);
+    }
+
+    private void sendToNode(String nodeId, String type, JSONObject payload) {
+        if (nodeId == null || nodeId.isEmpty() || messageApi == null) return;
         try {
             JSONObject frame = new JSONObject();
             frame.put("v", 1);
             frame.put("type", type);
             frame.put("payload", payload);
             byte[] bytes = frame.toString().getBytes(StandardCharsets.UTF_8);
-            messageApi.sendMessage(node.id, bytes)
+            messageApi.sendMessage(nodeId, bytes)
                 .addOnSuccessListener(unused ->
                     runOnUiThread(() -> status.setText("Отправлено на часы"))
                 )
@@ -340,7 +399,7 @@ public final class MainActivity extends Activity {
                     runOnUiThread(() -> status.setText("Не удалось отправить: " + safe(error)))
                 );
         } catch (Exception error) {
-            status.setText("Ошибка сообщения: " + safe(error));
+            runOnUiThread(() -> status.setText("Ошибка сообщения: " + safe(error)));
         }
     }
 

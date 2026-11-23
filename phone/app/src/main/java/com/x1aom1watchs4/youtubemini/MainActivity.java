@@ -8,7 +8,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.TextView;
+import android.widget.TextView;\nimport android.text.InputType;
 
 import com.xiaomi.xms.wearable.Wearable;
 import com.xiaomi.xms.wearable.message.MessageApi;
@@ -132,7 +132,7 @@ public final class MainActivity extends Activity {
         root.addView(searchHeading);
 
         apiKey = new EditText(this);
-        apiKey.setSingleLine(true);
+        apiKey.setSingleLine(true);\n        apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         apiKey.setHint("YouTube Data API key (не сохраняется)");
         root.addView(apiKey);
 

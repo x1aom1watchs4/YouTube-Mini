@@ -1,6 +1,6 @@
 # Phone ↔ Watch communication contract
 
-Status: draft. This is an application-level message contract for the official Vela `@system.interconnect` channel. It does not replace the transport implementation from WristBook / Vers AI.
+Status: prototype. The watch transport uses Xiaomi Vela `@system.interconnect`; the Android companion uses Xiaomi XMS Wearable `NodeApi` and `MessageApi`, matching the message transport pattern in the existing WristBook / Vers AI companion.
 
 ## Connection states
 
@@ -55,4 +55,4 @@ The protocol only transports metadata and control messages. It does not download
 
 ## Implementation gate
 
-Before wiring this contract to the real transport, inspect the WristBook / Vers AI source and preserve its package identity, signing setup, connection lifecycle and message framing wherever compatible.
+The Android companion checks connected nodes while its screen is open and registers an XMS message listener for the selected node. The watch relies on Vela-managed interconnect lifecycle callbacks and an explicit `diagnosis()` check. Both sides use the same JSON envelope. Actual on-device interoperability still needs a paired-device test with matching signing certificates.

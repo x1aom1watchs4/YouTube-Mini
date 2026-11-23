@@ -1,9 +1,9 @@
 {
-  "package": "com.xiaomi.watchs4.youtubemini",
+  "package": "com.x1aom1watchs4.youtubemini",
   "name": "YT Mini",
   "icon": "/common/icon.png",
-  "versionName": "0.1.1",
-  "versionCode": 2,
+  "versionName": "0.1.2",
+  "versionCode": 3,
   "minPlatformVersion": 1000,
   "minAPILevel": 2,
   "deviceTypeList": [

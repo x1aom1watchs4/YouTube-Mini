@@ -191,7 +191,7 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(label);
         button.setOnClickListener(v -> send("playback.command",
-            new JSONObject().putSafe("action", action)));
+            put(new JSONObject(), "action", action)));
         row.addView(button, new LinearLayout.LayoutParams(0,
             LinearLayout.LayoutParams.WRAP_CONTENT, 1));
     }
@@ -300,10 +300,10 @@ public final class MainActivity extends Activity {
 
     private void sendVideo(String id, String title, String channel, String thumbnail) {
         JSONObject payload = new JSONObject();
-        payload.putSafe("videoId", id);
-        payload.putSafe("title", title);
-        payload.putSafe("channelTitle", channel);
-        payload.putSafe("thumbnailUrl", thumbnail);
+        put(payload, "videoId", id);
+        put(payload, "title", title);
+        put(payload, "channelTitle", channel);
+        put(payload, "thumbnailUrl", thumbnail);
         send("video.select", payload);
     }
 
@@ -312,8 +312,8 @@ public final class MainActivity extends Activity {
             int seconds = Integer.parseInt(seekSeconds.getText().toString().trim());
             if (seconds < 0) throw new NumberFormatException();
             JSONObject payload = new JSONObject();
-            payload.putSafe("action", "seek");
-            payload.putSafe("seconds", seconds);
+            put(payload, "action", "seek");
+            put(payload, "seconds", seconds);
             send("playback.command", payload);
         } catch (NumberFormatException error) {
             status.setText("Укажи время в секундах.");
@@ -344,7 +344,7 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static String readAll(InputStream input) throws Exception {
+    private static JSONObject put(JSONObject object, String key, Object value) {\n        try { object.put(key, value); } catch (Exception ignored) {}\n        return object;\n    }\n\n    private static String readAll(InputStream input) throws Exception {
         if (input == null) return "";
         try (BufferedReader reader = new BufferedReader(
             new InputStreamReader(input, StandardCharsets.UTF_8))) {

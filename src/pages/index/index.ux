@@ -12,7 +12,21 @@
 
     <div class="search-panel">
       <text class="video-label">ПОИСК НА ТЕЛЕФОНЕ</text>
-      <input class="search-input" type="text" value="{{searchQuery}}" placeholder="Что посмотреть?" @change="onSearchChange" />
+      <text class="query-display">{{searchQuery || 'Набери запрос ниже'}}</text>
+      <div class="keyboard-row">
+        <text class="key" for="{{keyboardRow1}}" @click="appendSearch($item)">{{$item}}</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key" for="{{keyboardRow2}}" @click="appendSearch($item)">{{$item}}</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key" for="{{keyboardRow3}}" @click="appendSearch($item)">{{$item}}</text>
+        <text class="key key-action" @click="deleteSearch">⌫</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key key-wide" @click="appendSearch(' ')">ПРОБЕЛ</text>
+        <text class="key key-action" @click="clearSearch">×</text>
+      </div>
       <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
       <text class="search-hint">{{searchHint}}</text>
       <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle)">
@@ -96,14 +110,38 @@
   background-color: #171b24;
   flex-direction: column;
 }
-.search-input {
+.query-display {
   margin-top: 10px;
-  height: 42px;
+  min-height: 34px;
   color: #ffffff;
   background-color: #292f3b;
   border-radius: 10px;
-  padding-left: 10px;
+  padding: 8px;
   font-size: 15px;
+}
+.keyboard-row {
+  flex-direction: row;
+  justify-content: center;
+  margin-top: 5px;
+}
+.key {
+  flex: 1;
+  margin-left: 2px;
+  margin-right: 2px;
+  height: 30px;
+  border-radius: 6px;
+  background-color: #303847;
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+  padding-top: 7px;
+}
+.key-action {
+  background-color: #5a3440;
+}
+.key-wide {
+  flex: 4;
+  font-size: 10px;
 }
 .search-button {
   margin-top: 8px;
@@ -234,7 +272,10 @@ export default {
     playbackHint: 'Плеер часов пока проверяется',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
-    videoResults: []
+    videoResults: [],
+    keyboardRow1: ['q','w','e','r','t','y','u','i','o','p'],
+    keyboardRow2: ['a','s','d','f','g','h','j','k','l'],
+    keyboardRow3: ['z','x','c','v','b','n','m']
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -267,8 +308,15 @@ export default {
   retryConnection() {
     link.checkConnection()
   },
-  onSearchChange(event) {
-    this.searchQuery = event && event.value ? event.value : ''
+  appendSearch(value) {
+    if (this.searchQuery.length < 80) this.searchQuery += value
+  },
+  deleteSearch() {
+    this.searchQuery = this.searchQuery.slice(0, -1)
+  },
+  clearSearch() {
+    this.searchQuery = ''
+    this.videoResults = []
   },
   searchOnPhone() {
     const query = (this.searchQuery || '').trim()

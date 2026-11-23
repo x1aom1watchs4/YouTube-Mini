@@ -295,6 +295,7 @@ export default {
         const payload = event.message.payload || {}
         this.videoTitle = payload.title || 'Видео выбрано'
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
+        this.playbackHint = 'Видео выбрано. Видеоплеер ещё не подключён.'
       }
       if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
@@ -369,16 +370,22 @@ export default {
   sendPlay() {
     if (!link.send('playback.command', { action: 'play' })) {
       this.connectionLabel = 'Нет соединения'
+    } else {
+      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
     }
   },
   sendPause() {
     if (!link.send('playback.command', { action: 'pause' })) {
       this.connectionLabel = 'Нет соединения'
+    } else {
+      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
     }
   },
   sendStop() {
     if (!link.send('playback.command', { action: 'stop' })) {
       this.connectionLabel = 'Нет соединения'
+    } else {
+      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
     }
   }
 }

@@ -296,7 +296,7 @@ public final class MainActivity extends Activity {
                     .addOnSuccessListener(unused -> {
                         listeningNodeId = nextId;
                         runOnUiThread(() -> status.setText("Часы найдены. Проверяем разрешение…"));
-                        authorizeAndOpenWatch(nextNode);
+                        authorizeAndOpenWatch(selectedNode);
                     })
                     .addOnFailureListener(error ->
                         runOnUiThread(() -> status.setText("Не удалось включить приём сообщений: " + safe(error)))

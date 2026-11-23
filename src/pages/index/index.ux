@@ -10,6 +10,17 @@
       <text class="status">{{connectionLabel}}</text>
     </div>
 
+    <div class="search-panel">
+      <text class="video-label">ПОИСК НА ТЕЛЕФОНЕ</text>
+      <input class="search-input" type="text" value="{{searchQuery}}" placeholder="Что посмотреть?" @change="onSearchChange" />
+      <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
+      <text class="search-hint">{{searchHint}}</text>
+      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle)">
+        <text class="result-title">{{$item.title}}</text>
+        <text class="result-channel">{{$item.channelTitle}}</text>
+      </div>
+    </div>
+
     <div class="hero">
       <text class="eyebrow">ВАША МУЗЫКА И ВИДЕО</text>
       <text class="headline">Видео рядом.</text>
@@ -78,8 +89,53 @@
   color: #dce1e9;
   font-size: 15px;
 }
+.search-panel {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 18px;
+  background-color: #171b24;
+  flex-direction: column;
+}
+.search-input {
+  margin-top: 10px;
+  height: 42px;
+  color: #ffffff;
+  background-color: #292f3b;
+  border-radius: 10px;
+  padding-left: 10px;
+  font-size: 15px;
+}
+.search-button {
+  margin-top: 8px;
+  height: 40px;
+  color: #ffffff;
+  background-color: #ff3347;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.search-hint {
+  margin-top: 8px;
+  color: #8e9aaf;
+  font-size: 12px;
+}
+.result {
+  margin-top: 8px;
+  padding: 9px;
+  border-radius: 10px;
+  background-color: #252b36;
+  flex-direction: column;
+}
+.result-title {
+  color: #ffffff;
+  font-size: 13px;
+}
+.result-channel {
+  color: #9ba5b5;
+  font-size: 11px;
+  margin-top: 3px;
+}
 .hero {
-  margin-top: 34px;
+  margin-top: 24px;
   flex-direction: column;
 }
 .eyebrow {
@@ -175,7 +231,10 @@ export default {
     connectionLabel: 'Нет соединения',
     videoTitle: 'Пока ничего не выбрано',
     videoSubtitle: 'Откройте YouTube Mini на телефоне',
-    playbackHint: 'Плеер часов пока проверяется'
+    playbackHint: 'Плеер часов пока проверяется',
+    searchQuery: '',
+    searchHint: 'Поиск выполняется на телефоне',
+    videoResults: []
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -183,6 +242,17 @@ export default {
         const payload = event.message.payload || {}
         this.videoTitle = payload.title || 'Видео выбрано'
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
+      }
+      if (event.message && event.message.type === 'video.results') {
+        const payload = event.message.payload || {}
+        this.videoResults = Array.isArray(payload.items) ? payload.items : []
+        this.searchHint = this.videoResults.length
+          ? 'Найдено: ' + this.videoResults.length
+          : 'Ничего не найдено'
+      }
+      if (event.message && event.message.type === 'video.search.error') {
+        const payload = event.message.payload || {}
+        this.searchHint = payload.message || 'Не удалось выполнить поиск'
       }
       if (event.state) {
         this.connected = event.state === 'connected'
@@ -196,6 +266,32 @@ export default {
   },
   retryConnection() {
     link.checkConnection()
+  },
+  onSearchChange(event) {
+    this.searchQuery = event && event.value ? event.value : ''
+  },
+  searchOnPhone() {
+    const query = (this.searchQuery || '').trim()
+    if (!query) {
+      this.searchHint = 'Введи поисковый запрос'
+      return
+    }
+    if (!link.send('video.search', { query })) {
+      this.searchHint = 'Нет соединения'
+      return
+    }
+    this.searchHint = 'Ищем на телефоне…'
+    this.videoResults = []
+  },
+  selectVideo(videoId, title, channelTitle) {
+    const payload = { videoId, title, channelTitle }
+    if (!link.send('video.select', payload)) {
+      this.searchHint = 'Нет соединения'
+      return
+    }
+    this.videoTitle = title || 'Видео выбрано'
+    this.videoSubtitle = channelTitle || 'Выбрано на часах'
+    this.searchHint = 'Видео отправлено в приложение телефона'
   },
   sendPlay() {
     if (!link.send('playback.command', { action: 'play' })) {

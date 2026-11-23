@@ -24,6 +24,7 @@
         <text class="key key-action" @click="deleteSearch">⌫</text>
       </div>
       <div class="keyboard-row">
+        <text class="key key-action" @click="switchKeyboard">{{keyboardLanguage}}</text>
         <text class="key key-wide" @click="appendSearch(' ')">ПРОБЕЛ</text>
         <text class="key key-action" @click="clearSearch">×</text>
       </div>
@@ -275,7 +276,18 @@ export default {
     videoResults: [],
     keyboardRow1: ['q','w','e','r','t','y','u','i','o','p'],
     keyboardRow2: ['a','s','d','f','g','h','j','k','l'],
-    keyboardRow3: ['z','x','c','v','b','n','m']
+    keyboardRow3: ['z','x','c','v','b','n','m'],
+    keyboardLanguage: 'EN',
+    keyboardRowsEn: [
+      ['q','w','e','r','t','y','u','i','o','p'],
+      ['a','s','d','f','g','h','j','k','l'],
+      ['z','x','c','v','b','n','m']
+    ],
+    keyboardRowsRu: [
+      ['й','ц','у','к','е','н','г','ш','щ','з'],
+      ['ф','ы','в','а','п','р','о','л','д'],
+      ['я','ч','с','м','и','т','ь','б','ю']
+    ]
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -307,6 +319,19 @@ export default {
   },
   retryConnection() {
     link.checkConnection()
+  },
+  switchKeyboard() {
+    if (this.keyboardLanguage === 'EN') {
+      this.keyboardLanguage = 'RU'
+      this.keyboardRow1 = this.keyboardRowsRu[0]
+      this.keyboardRow2 = this.keyboardRowsRu[1]
+      this.keyboardRow3 = this.keyboardRowsRu[2]
+    } else {
+      this.keyboardLanguage = 'EN'
+      this.keyboardRow1 = this.keyboardRowsEn[0]
+      this.keyboardRow2 = this.keyboardRowsEn[1]
+      this.keyboardRow3 = this.keyboardRowsEn[2]
+    }
   },
   appendSearch(value) {
     if (this.searchQuery.length < 80) this.searchQuery += value

@@ -1,4 +1,4 @@
-name: Vela app check
+name: App builds
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-vela:
+    name: Build watch app (RPK)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,4 +28,37 @@ jobs:
           path: |
             dist/**/*.rpk
             build/**/*.rpk
-          if-no-files-found: warn
+          if-no-files-found: error
+
+  build-android:
+    name: Build phone app (APK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get official Xiaomi XMS Wearable SDK
+        uses: actions/checkout@v4
+        with:
+          repository: open-vela/packages_apps
+          ref: dev
+          path: /tmp/open-vela-sdk
+          sparse-checkout: wearable/interconnect_image_demo/android_program/libs/xms-wearable-lib_1.4_release.aar
+          sparse-checkout-cone-mode: false
+      - name: Install SDK library
+        run: |
+          mkdir -p phone/app/libs
+          cp /tmp/open-vela-sdk/wearable/interconnect_image_demo/android_program/libs/xms-wearable-lib_1.4_release.aar phone/app/libs/
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Assemble debug APK
+        run: gradle -p phone assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-mini-android-apk
+          path: phone/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

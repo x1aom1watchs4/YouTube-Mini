@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-vela:
     name: Build watch app (RPK)
@@ -19,15 +22,61 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Lint Vela sources
         run: npm run lint
-      - name: Build RPK
+      - name: Build debug RPK
         run: npm run build
-      - name: Upload RPK output
+      - name: Verify and stage debug RPK
+        run: |
+          set -euo pipefail
+          RPK="$(find dist -type f -name '*.debug.*.rpk' -print -quit)"
+          test -n "$RPK"
+          mkdir -p artifacts
+          cp "$RPK" artifacts/
+          file src/common/icon.png
+          node -e "const b=require('fs').readFileSync('src/common/icon.png'); if(b.toString('hex',0,8)!=='89504e470d0a1a0a'||b.readUInt32BE(16)!==192||b.readUInt32BE(20)!==192) process.exit(1); console.log('Icon verified: PNG 192x192')"
+      - name: Upload debug RPK
         uses: actions/upload-artifact@v4
         with:
-          name: youtube-mini-vela-rpk
-          path: |
-            dist/**/*.rpk
-            build/**/*.rpk
+          name: youtube-mini-vela-debug-rpk
+          path: artifacts/*.rpk
+          if-no-files-found: error
+      - name: Configure Vela release signing certificate
+        id: signing
+        env:
+          VELA_PRIVATE_KEY: ${{ secrets.VELA_PRIVATE_KEY }}
+          VELA_CERTIFICATE: ${{ secrets.VELA_CERTIFICATE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VELA_PRIVATE_KEY" ] || [ -z "$VELA_CERTIFICATE" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets are not configured; debug RPK is still available."
+            exit 0
+          fi
+          mkdir -p sign
+          printf '%s\n' "$VELA_PRIVATE_KEY" > sign/private.pem
+          printf '%s\n' "$VELA_CERTIFICATE" > sign/certificate.pem
+          openssl pkey -in sign/private.pem -check -noout
+          openssl x509 -in sign/certificate.pem -noout -subject -dates
+          KEY_HASH="$(openssl pkey -in sign/private.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)"
+          CERT_HASH="$(openssl x509 -in sign/certificate.pem -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1)"
+          test "$KEY_HASH" = "$CERT_HASH"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Build signed release RPK
+        if: steps.signing.outputs.ready == 'true'
+        run: npm run release
+      - name: Verify and stage release RPK
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          RPK="$(find dist -type f -name '*.release.*.rpk' -print -quit)"
+          test -n "$RPK"
+          mkdir -p release-artifacts
+          cp "$RPK" release-artifacts/
+      - name: Upload signed release RPK
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-mini-vela-release-rpk
+          path: release-artifacts/*.rpk
           if-no-files-found: error
 
   build-android:

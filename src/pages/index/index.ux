@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <scroll class="page" scroll-y="true">
     <div class="top">
       <text class="brand">YouTube Mini</text>
       <text class="version">0.1 • WATCH</text>
@@ -58,7 +58,7 @@
       <text class="retry" @click="retryConnection">ПРОВЕРИТЬ СВЯЗЬ</text>
       <text class="foot">Телефон ↔ часы</text>
     </div>
-  </div>
+  </scroll>
 </template>
 
 <style>

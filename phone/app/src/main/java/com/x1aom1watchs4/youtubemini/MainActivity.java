@@ -251,6 +251,8 @@ public final class MainActivity extends Activity {
                     }
                     activeNode = null;
                     listeningNodeId = "";
+                    permissionRequestNodeId = "";
+                    launchRequestedNodeId = "";
                     status.setText("Нет соединения");
                     return;
                 }
@@ -285,7 +287,7 @@ public final class MainActivity extends Activity {
                 }
                 activeNode = nextNode;
                 if (nextId.equals(listeningNodeId)) {
-                    status.setText("Часы подключены");
+                    authorizeAndOpenWatch(nextNode);
                     return;
                 }
 

@@ -74,7 +74,7 @@ public final class MainActivity extends Activity {
                     if ("playback.command".equals(type)) {
                         final String action = payload.optString("action", "unknown");
                         runOnUiThread(() ->
-                            playbackStatus.setText("Команда с часов: " + action)
+                            playbackStatus.setText("Команда с часов: " + action + " (плеер пока не подключён)")
                         );
                     } else if ("video.select".equals(type)) {
                         final String title = payload.optString("title", "Видео выбрано на часах");
@@ -198,7 +198,7 @@ public final class MainActivity extends Activity {
         root.addView(send);
 
         TextView controlsHeading = new TextView(this);
-        controlsHeading.setText("Управление");
+        controlsHeading.setText("Команды плеера (демо)");
         controlsHeading.setTextSize(20);
         root.addView(controlsHeading);
 
@@ -465,7 +465,12 @@ public final class MainActivity extends Activity {
             byte[] bytes = frame.toString().getBytes(StandardCharsets.UTF_8);
             messageApi.sendMessage(nodeId, bytes)
                 .addOnSuccessListener(unused ->
-                    runOnUiThread(() -> status.setText("Отправлено на часы"))
+                    runOnUiThread(() -> {
+                        status.setText("Отправлено на часы");
+                        if ("playback.command".equals(type)) {
+                            playbackStatus.setText("Команда доставлена. Видеоплеер на часах ещё не подключён.");
+                        }
+                    })
                 )
                 .addOnFailureListener(error ->
                     runOnUiThread(() -> status.setText("Не удалось отправить: " + safe(error)))

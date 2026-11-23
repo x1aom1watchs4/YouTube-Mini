@@ -31,12 +31,12 @@ Receivers must ignore unknown message types and unsupported protocol versions. V
 |---|---|---|
 | `hello` | both | Exchange app/protocol capabilities |
 | `ping` / `pong` | both | Check that the app-level channel is responsive |
-| `video.select` | phone → watch | Send video ID, title, channel and thumbnail URL; never send media bytes |
+| `video.search` | watch → phone | Search YouTube using the API key entered in the phone app |\n| `video.results` | phone → watch | Return up to 10 result metadata records |\n| `video.search.error` | phone → watch | Return a safe search error |\n| `video.select` | both | Send selected video ID, title, channel and thumbnail URL; never send media bytes |
 | `playback.command` | both | Send `play`, `pause`, or `seek` command |
 | `playback.state` | both | Report position, duration and play/pause state |
 | `error` | both | Report a safe, user-readable error code |
 
-## Video selection payload
+## Search payload\n\nA watch search request carries a short query string. The phone performs the official YouTube Data API search and returns a bounded list of metadata records (`videoId`, `title`, `channelTitle`, `thumbnailUrl`). API keys are entered on the phone and are not stored by this prototype.\n\n## Video selection payload
 
 ```json
 {

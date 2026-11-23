@@ -4,11 +4,15 @@
   "icon": "/common/icon.svg",
   "versionName": "0.1.0",
   "versionCode": 1,
+  "minPlatformVersion": 1200,
   "minAPILevel": 1,
   "deviceTypeList": [
     "watch"
   ],
   "features": [
+    {
+      "name": "system.router"
+    },
     {
       "name": "system.interconnect"
     }
@@ -18,11 +22,10 @@
     "designWidth": 233
   },
   "router": {
-    "entry": "Index",
+    "entry": "pages/index",
     "pages": {
-      "Index": {
-        "component": "index",
-        "path": "/"
+      "pages/index": {
+        "component": "index"
       }
     }
   },

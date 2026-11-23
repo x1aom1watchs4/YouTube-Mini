@@ -21,15 +21,15 @@
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
       <div class="controls">
-        <text class="control" onclick="sendPause">Ⅱ</text>
-        <text class="control primary" onclick="sendPlay">▶</text>
-        <text class="control" onclick="sendStop">■</text>
+        <text class="control" @click="sendPause">Ⅱ</text>
+        <text class="control primary" @click="sendPlay">▶</text>
+        <text class="control" @click="sendStop">■</text>
       </div>
       <text class="hint">{{playbackHint}}</text>
     </div>
 
     <div class="bottom">
-      <text class="retry" onclick="retryConnection">ПРОВЕРИТЬ СВЯЗЬ</text>
+      <text class="retry" @click="retryConnection">ПРОВЕРИТЬ СВЯЗЬ</text>
       <text class="foot">Телефон ↔ часы</text>
     </div>
   </div>

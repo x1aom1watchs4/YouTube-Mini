@@ -14,6 +14,7 @@ import android.widget.TextView;
 import android.text.InputType;
 
 import com.xiaomi.xms.wearable.Wearable;
+import com.xiaomi.xms.wearable.auth.Permission;
 import com.xiaomi.xms.wearable.message.MessageApi;
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener;
 import com.xiaomi.xms.wearable.node.Node;
@@ -49,6 +50,8 @@ public final class MainActivity extends Activity {
     private MessageApi messageApi;
     private Node activeNode;
     private String listeningNodeId = "";
+    private String permissionRequestNodeId = "";
+    private String launchRequestedNodeId = "";
     private TextView status;
     private TextView playbackStatus;
     private EditText apiKey;
@@ -289,10 +292,11 @@ public final class MainActivity extends Activity {
                 messageApi.addListener(nextId, messageListener)
                     .addOnSuccessListener(unused -> {
                         listeningNodeId = nextId;
-                        runOnUiThread(() -> status.setText("Часы подключены"));
+                        runOnUiThread(() -> status.setText("Часы найдены. Проверяем разрешение…"));
+                        authorizeAndOpenWatch(nextNode);
                     })
                     .addOnFailureListener(error ->
-                        runOnUiThread(() -> status.setText("Ошибка связи: " + safe(error)))
+                        runOnUiThread(() -> status.setText("Не удалось включить приём сообщений: " + safe(error)))
                     );
             })
             .addOnFailureListener(error -> {
@@ -302,6 +306,85 @@ public final class MainActivity extends Activity {
                     playbackStatus.setText("Проверка связи не удалась: " + safe(error));
                 });
             });
+    }
+
+    /**
+     * Mirrors the proven WristAI/WristBook startup sequence:
+     * find a connected XMS node -> check DEVICE_MANAGER permission ->
+     * request it if needed -> launch the Vela app on the watch.
+     */
+    private void authorizeAndOpenWatch(Node node) {
+        if (node == null || node.id == null || node.id.isEmpty()) return;
+        final String nodeId = node.id;
+        try {
+            Wearable.getAuthApi(getApplicationContext())
+                .checkPermissions(nodeId, new Permission[] { Permission.DEVICE_MANAGER })
+                .addOnSuccessListener(grants -> {
+                    boolean granted = grants != null && grants.length > 0 && grants[0];
+                    if (!granted) {
+                        if (nodeId.equals(permissionRequestNodeId)) {
+                            runOnUiThread(() -> status.setText(
+                                "Подтверди разрешение для YouTube Mini в Notify for Xiaomi"
+                            ));
+                            return;
+                        }
+                        permissionRequestNodeId = nodeId;
+                        runOnUiThread(() -> status.setText(
+                            "Запрашиваем разрешение на связь с часами…"
+                        ));
+                        try {
+                            Wearable.getAuthApi(getApplicationContext())
+                                .requestPermission(nodeId, Permission.DEVICE_MANAGER)
+                                .addOnSuccessListener(unused -> {
+                                    runOnUiThread(() -> status.setText(
+                                        "Запрос отправлен. Подтверди разрешение в Notify for Xiaomi, если появится"
+                                    ));
+                                    launchWatchApp(nodeId);
+                                })
+                                .addOnFailureListener(error -> runOnUiThread(() ->
+                                    status.setText("Не удалось запросить разрешение: " + safe(error))
+                                ));
+                        } catch (Exception error) {
+                            runOnUiThread(() ->
+                                status.setText("Ошибка запроса разрешения: " + safe(error))
+                            );
+                        }
+                        return;
+                    }
+                    permissionRequestNodeId = "";
+                    launchWatchApp(nodeId);
+                })
+                .addOnFailureListener(error -> runOnUiThread(() ->
+                    status.setText("Не удалось проверить разрешение часов: " + safe(error))
+                ));
+        } catch (Exception error) {
+            runOnUiThread(() ->
+                status.setText("Ошибка проверки разрешения: " + safe(error))
+            );
+        }
+    }
+
+    private void launchWatchApp(String nodeId) {
+        if (nodeId == null || nodeId.isEmpty() || nodeId.equals(launchRequestedNodeId)) return;
+        launchRequestedNodeId = nodeId;
+        try {
+            Wearable.getNodeApi(getApplicationContext())
+                .launchWearApp(nodeId, "/pages/index")
+                .addOnSuccessListener(unused -> runOnUiThread(() ->
+                    status.setText("Часы подключены. YouTube Mini открыт на часах")
+                ))
+                .addOnFailureListener(error -> {
+                    launchRequestedNodeId = "";
+                    runOnUiThread(() ->
+                        status.setText("Связь найдена, но не удалось открыть YouTube Mini: " + safe(error))
+                    );
+                });
+        } catch (Exception error) {
+            launchRequestedNodeId = "";
+            runOnUiThread(() ->
+                status.setText("Ошибка запуска YouTube Mini на часах: " + safe(error))
+            );
+        }
     }
 
     private void searchVideos() {

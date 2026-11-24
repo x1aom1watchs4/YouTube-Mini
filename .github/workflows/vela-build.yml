@@ -142,7 +142,7 @@ jobs:
           test -n "$APKSIGNER"
           APK_CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$APK")"
           printf '%s\n' "$APK_CERT_OUTPUT"
-          APK_HASH="$(printf '%s\n' "$APK_CERT_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' | tr -d ':')"
+          APK_HASH="$(printf '%s\n' "$APK_CERT_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/ {print tolower($NF); exit}' | tr -d ':')"
           CERT_HASH="$(openssl x509 -in phone/signing/certificate.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           echo "APK certificate SHA-256: ${APK_HASH:-NOT_FOUND}"
           echo "Vela certificate SHA-256: $CERT_HASH"

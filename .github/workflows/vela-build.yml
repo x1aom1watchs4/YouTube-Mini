@@ -52,8 +52,8 @@ jobs:
             exit 0
           fi
           mkdir -p sign
-          printf '%s\\n' "$VELA_PRIVATE_KEY" > sign/private.pem
-          printf '%s\\n' "$VELA_CERTIFICATE" > sign/certificate.pem
+          printf '%s\n' "$VELA_PRIVATE_KEY" > sign/private.pem
+          printf '%s\n' "$VELA_CERTIFICATE" > sign/certificate.pem
           openssl pkey -in sign/private.pem -check -noout
           openssl x509 -in sign/certificate.pem -noout -subject -dates
           KEY_HASH="$(openssl pkey -in sign/private.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)"
@@ -116,8 +116,8 @@ jobs:
             exit 0
           fi
           mkdir -p phone/signing
-          printf '%s\\n' "$VELA_PRIVATE_KEY" > phone/signing/private.pem
-          printf '%s\\n' "$VELA_CERTIFICATE" > phone/signing/certificate.pem
+          printf '%s\n' "$VELA_PRIVATE_KEY" > phone/signing/private.pem
+          printf '%s\n' "$VELA_CERTIFICATE" > phone/signing/certificate.pem
           openssl pkey -in phone/signing/private.pem -check -noout
           KEY_HASH="$(openssl pkey -in phone/signing/private.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)"
           CERT_HASH="$(openssl x509 -in phone/signing/certificate.pem -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1)"

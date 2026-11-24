@@ -52,8 +52,8 @@ jobs:
             exit 0
           fi
           mkdir -p sign
-          printf '%s\n' "$VELA_PRIVATE_KEY" > sign/private.pem
-          printf '%s\n' "$VELA_CERTIFICATE" > sign/certificate.pem
+          printf '%s\\n' "$VELA_PRIVATE_KEY" > sign/private.pem
+          printf '%s\\n' "$VELA_CERTIFICATE" > sign/certificate.pem
           openssl pkey -in sign/private.pem -check -noout
           openssl x509 -in sign/certificate.pem -noout -subject -dates
           KEY_HASH="$(openssl pkey -in sign/private.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)"
@@ -103,11 +103,60 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+      - name: Prepare Android release signing
+        id: android-signing
+        env:
+          VELA_PRIVATE_KEY: ${{ secrets.VELA_PRIVATE_KEY }}
+          VELA_CERTIFICATE: ${{ secrets.VELA_CERTIFICATE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VELA_PRIVATE_KEY" ] || [ -z "$VELA_CERTIFICATE" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Android release signing secrets are not configured; debug APK is still available."
+            exit 0
+          fi
+          mkdir -p phone/signing
+          printf '%s\\n' "$VELA_PRIVATE_KEY" > phone/signing/private.pem
+          printf '%s\\n' "$VELA_CERTIFICATE" > phone/signing/certificate.pem
+          openssl pkey -in phone/signing/private.pem -check -noout
+          KEY_HASH="$(openssl pkey -in phone/signing/private.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)"
+          CERT_HASH="$(openssl x509 -in phone/signing/certificate.pem -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1)"
+          test "$KEY_HASH" = "$CERT_HASH"
+          KEYSTORE_PASSWORD="$(openssl rand -hex 32)"
+          openssl pkcs12 -export -in phone/signing/certificate.pem -inkey phone/signing/private.pem -out "$RUNNER_TEMP/youtube-mini-release.p12" -name youtube-mini -passout "pass:$KEYSTORE_PASSWORD"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/youtube-mini-release.p12" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
       - name: Assemble debug APK
         run: gradle -p phone assembleDebug
-      - name: Upload APK
+      - name: Assemble signed release APK
+        if: steps.android-signing.outputs.ready == 'true'
+        run: gradle -p phone assembleRelease
+      - name: Verify Android APK certificate matches Vela certificate
+        if: steps.android-signing.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          APK="$(find phone/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          APK_HASH="$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' | tr -d ':')"
+          CERT_HASH="$(openssl x509 -in phone/signing/certificate.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test -n "$APK_HASH"
+          test "$APK_HASH" = "$CERT_HASH"
+          mkdir -p phone/release-artifacts
+          cp "$APK" phone/release-artifacts/
+          echo "Verified: Android APK certificate SHA-256 matches the Vela release certificate."
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: youtube-mini-android-apk
+          name: youtube-mini-android-debug-apk
           path: phone/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload signed release APK
+        if: steps.android-signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-mini-android-release-apk
+          path: phone/release-artifacts/*.apk
           if-no-files-found: error

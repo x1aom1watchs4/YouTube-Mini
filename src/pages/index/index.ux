@@ -306,6 +306,8 @@ export default {
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
+        this.selectedLikeCount = payload.likeCount || '—'
+        this.selectedCommentCount = payload.commentCount || '—'
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}

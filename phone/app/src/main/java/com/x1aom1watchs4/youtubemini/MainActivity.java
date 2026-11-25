@@ -489,7 +489,7 @@ public final class MainActivity extends Activity {
                     JSONObject stats = item.optJSONObject("statistics");
                     video.put("likeCount", stats == null ? JSONObject.NULL : stats.opt("likeCount"));
                     video.put("commentCount", stats == null ? JSONObject.NULL : stats.opt("commentCount"));
-                    video.put("thumbnailUrl", thumbnailUrlFor(videoId));
+                    video.put("thumbnailUrl", thumbnailUrlFor(snippet, videoId));
                     compact.put(video);
                 }
                 sendToNode(nodeId, "video.results", put(new JSONObject(), "items", compact));
@@ -635,7 +635,7 @@ public final class MainActivity extends Activity {
             String selectedId = id.optString("videoId", "");
             String title = snippet.optString("title", "Видео");
             String channel = snippet.optString("channelTitle", "");
-            String thumbnailUrl = thumbnailUrlFor(selectedId);
+            String thumbnailUrl = thumbnailUrlFor(snippet, selectedId);
             JSONObject stats = item.optJSONObject("statistics");
             String likes = stats == null ? "—" : stats.optString("likeCount", "—");
             String comments = stats == null ? "—" : stats.optString("commentCount", "—");
@@ -674,6 +674,24 @@ public final class MainActivity extends Activity {
         put(payload, "likeCount", likeCount == null ? "" : likeCount);
         put(payload, "commentCount", commentCount == null ? "" : commentCount);
         send("video.select", payload);
+    }
+
+    private static String thumbnailUrlFor(JSONObject snippet, String videoId) {
+        if (snippet != null) {
+            JSONObject thumbnails = snippet.optJSONObject("thumbnails");
+            if (thumbnails != null) {
+                String[] priorities = { "high", "medium", "default" };
+                for (String size : priorities) {
+                    JSONObject image = thumbnails.optJSONObject(size);
+                    if (image == null) continue;
+                    String url = image.optString("url", "");
+                    if (url.startsWith("https://") || url.startsWith("http://")) {
+                        return url;
+                    }
+                }
+            }
+        }
+        return thumbnailUrlFor(videoId);
     }
 
     private static String thumbnailUrlFor(String videoId) {

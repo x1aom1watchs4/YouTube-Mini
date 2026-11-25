@@ -15,6 +15,9 @@
     },
     {
       "name": "system.interconnect"
+    },
+    {
+      "name": "system.audio"
     }
   ],
   "config": {

@@ -78,7 +78,7 @@
         <text class="audio-control" @click="pauseAudio">PAUSE</text>
         <text class="audio-control" @click="stopAudio">STOP</text>
       </div>
-      <text class="audio-note">Send a direct audio URL from the phone app. YouTube video links do not work as audio files.</text>
+      <text class="audio-note">Choose an audio file in the phone app and send it here. Direct audio URLs are also supported.</text>
     </div>
 
     <div class="bottom">

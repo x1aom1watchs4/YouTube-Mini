@@ -644,7 +644,7 @@ public final class MainActivity extends Activity {
             result.setOnClickListener(v -> {
                 videoId.setText(selectedId);
                 videoTitle.setText(title);
-                sendVideo(selectedId, title, channel, thumbnailUrl);
+                sendVideo(selectedId, title, channel, thumbnailUrl, likes, comments);
             });
             results.addView(result);
         }
@@ -658,16 +658,19 @@ public final class MainActivity extends Activity {
             status.setText("Сначала выбери видео или введи его ID.");
             return;
         }
-        sendVideo(id, title.isEmpty() ? "Видео YouTube" : title, "", "");
+        sendVideo(id, title.isEmpty() ? "Видео YouTube" : title, "", "", "", "");
     }
 
-    private void sendVideo(String id, String title, String channel, String thumbnail) {
+    private void sendVideo(String id, String title, String channel, String thumbnail,
+                           String likeCount, String commentCount) {
         JSONObject payload = new JSONObject();
         if (thumbnail == null || thumbnail.isEmpty()) thumbnail = thumbnailUrlFor(id);
         put(payload, "videoId", id);
         put(payload, "title", title);
         put(payload, "channelTitle", channel);
         put(payload, "thumbnailUrl", thumbnail);
+        put(payload, "likeCount", likeCount == null ? "" : likeCount);
+        put(payload, "commentCount", commentCount == null ? "" : commentCount);
         send("video.select", payload);
     }
 

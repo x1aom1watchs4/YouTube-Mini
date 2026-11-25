@@ -107,6 +107,9 @@ public final class MainActivity extends Activity {
                     } else if ("video.search".equals(type)) {
                         final String query = payload.optString("query", "");
                         runOnUiThread(() -> searchVideosForWatch(query, nodeId));
+                    } else if ("comments.load".equals(type)) {
+                        final String id = payload.optString("videoId", "");
+                        if (!id.isEmpty()) io.execute(() -> fetchCommentsForWatch(id, nodeId));
                     }
                 } catch (Exception ignored) {
                     // Ignore malformed or unrelated messages.
@@ -475,6 +478,52 @@ public final class MainActivity extends Activity {
                     put(new JSONObject(), "message", safe(error)));
             }
         });
+    }
+
+    private void fetchCommentsForWatch(String videoId, String nodeId) {
+        String key = apiKey.getText().toString().trim();
+        try {
+            if (key.isEmpty()) throw new IllegalStateException("Сначала укажи YouTube API key в приложении телефона.");
+            HttpURLConnection connection = null;
+            JSONArray comments = new JSONArray();
+            try {
+                String address = "https://www.googleapis.com/youtube/v3/commentThreads"
+                    + "?part=snippet&videoId=" + URLEncoder.encode(videoId, "UTF-8")
+                    + "&maxResults=8&textFormat=plainText"
+                    + "&key=" + URLEncoder.encode(key, "UTF-8");
+                connection = (HttpURLConnection) new URL(address).openConnection();
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(10000);
+                int code = connection.getResponseCode();
+                InputStream stream = code >= 200 && code < 300
+                    ? connection.getInputStream() : connection.getErrorStream();
+                String body = readAll(stream);
+                if (code < 200 || code >= 300) {
+                    throw new IllegalStateException("YouTube API: HTTP " + code);
+                }
+                JSONArray items = new JSONObject(body).optJSONArray("items");
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.optJSONObject(i);
+                        JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
+                        JSONObject top = snippet == null ? null : snippet.optJSONObject("topLevelComment");
+                        JSONObject commentSnippet = top == null ? null : top.optJSONObject("snippet");
+                        if (commentSnippet == null) continue;
+                        JSONObject row = new JSONObject();
+                        row.put("author", commentSnippet.optString("authorDisplayName", "Пользователь"));
+                        row.put("text", commentSnippet.optString("textDisplay", ""));
+                        comments.put(row);
+                    }
+                }
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+            sendToNode(nodeId, "comments.items", put(new JSONObject(), "items", comments));
+        } catch (Exception error) {
+            sendToNode(nodeId, "comments.items",
+                put(new JSONObject(), "items", new JSONArray()));
+            runOnUiThread(() -> playbackStatus.setText("Комментарии: " + safe(error)));
+        }
     }
 
     private JSONArray fetchVideoResults(String query, String key) throws Exception {

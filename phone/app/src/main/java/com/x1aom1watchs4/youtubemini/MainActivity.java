@@ -486,6 +486,9 @@ public final class MainActivity extends Activity {
                     video.put("videoId", videoId);
                     video.put("title", snippet.optString("title", "Видео"));
                     video.put("channelTitle", snippet.optString("channelTitle", ""));
+                    JSONObject stats = item.optJSONObject("statistics");
+                    video.put("likeCount", stats == null ? JSONObject.NULL : stats.opt("likeCount"));
+                    video.put("commentCount", stats == null ? JSONObject.NULL : stats.opt("commentCount"));
                     video.put("thumbnailUrl", thumbnailUrlFor(videoId));
                     compact.put(video);
                 }
@@ -562,10 +565,57 @@ public final class MainActivity extends Activity {
                 throw new IllegalStateException("YouTube API ответил: HTTP " + code);
             }
             JSONArray items = new JSONObject(body).optJSONArray("items");
-            return items == null ? new JSONArray() : items;
+            if (items == null) return new JSONArray();
+            JSONObject statistics = fetchVideoStatistics(items, key);
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.optJSONObject(i);
+                JSONObject id = item == null ? null : item.optJSONObject("id");
+                String videoId = id == null ? "" : id.optString("videoId", "");
+                JSONObject stats = statistics.optJSONObject(videoId);
+                if (item != null && stats != null) item.put("statistics", stats);
+            }
+            return items;
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    private JSONObject fetchVideoStatistics(JSONArray videoItems, String key) {
+        JSONObject result = new JSONObject();
+        HttpURLConnection connection = null;
+        try {
+            StringBuilder ids = new StringBuilder();
+            for (int i = 0; i < videoItems.length(); i++) {
+                JSONObject item = videoItems.optJSONObject(i);
+                JSONObject id = item == null ? null : item.optJSONObject("id");
+                String videoId = id == null ? "" : id.optString("videoId", "");
+                if (videoId.isEmpty()) continue;
+                if (ids.length() > 0) ids.append(",");
+                ids.append(videoId);
+            }
+            if (ids.length() == 0) return result;
+            String address = "https://www.googleapis.com/youtube/v3/videos"
+                + "?part=statistics&id=" + URLEncoder.encode(ids.toString(), "UTF-8")
+                + "&key=" + URLEncoder.encode(key, "UTF-8");
+            connection = (HttpURLConnection) new URL(address).openConnection();
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(10000);
+            if (connection.getResponseCode() != 200) return result;
+            JSONArray rows = new JSONObject(readAll(connection.getInputStream())).optJSONArray("items");
+            if (rows != null) {
+                for (int i = 0; i < rows.length(); i++) {
+                    JSONObject row = rows.optJSONObject(i);
+                    if (row == null) continue;
+                    JSONObject stats = row.optJSONObject("statistics");
+                    if (stats != null) result.put(row.optString("id"), stats);
+                }
+            }
+        } catch (Exception ignored) {
+            // Search still works when public statistics are unavailable.
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+        return result;
     }
 
     private void showResults(JSONArray items) {
@@ -584,9 +634,13 @@ public final class MainActivity extends Activity {
             String title = snippet.optString("title", "Видео");
             String channel = snippet.optString("channelTitle", "");
             String thumbnailUrl = thumbnailUrlFor(selectedId);
+            JSONObject stats = item.optJSONObject("statistics");
+            String likes = stats == null ? "—" : stats.optString("likeCount", "—");
+            String comments = stats == null ? "—" : stats.optString("commentCount", "—");
             if (selectedId.isEmpty()) continue;
             Button result = new Button(this);
-            result.setText(title + (channel.isEmpty() ? "" : "\n" + channel));
+            result.setText(title + (channel.isEmpty() ? "" : "\n" + channel)
+                + "\n♥ " + likes + "   ·   Комментарии: " + comments);
             result.setOnClickListener(v -> {
                 videoId.setText(selectedId);
                 videoTitle.setText(title);

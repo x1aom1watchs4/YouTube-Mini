@@ -530,7 +530,7 @@ public final class MainActivity extends Activity {
                         JSONObject commentSnippet = top == null ? null : top.optJSONObject("snippet");
                         if (commentSnippet == null) continue;
                         JSONObject row = new JSONObject();
-                        row.put("author", commentSnippet.optString("authorDisplayName", "Пользователь"));
+                        row.put("author", commentSnippet.optString("authorDisplayName", "User"));
                         row.put("text", commentSnippet.optString("textDisplay", ""));
                         comments.put(row);
                     }
@@ -540,8 +540,10 @@ public final class MainActivity extends Activity {
             }
             sendToNode(nodeId, "comments.items", put(new JSONObject(), "items", comments));
         } catch (Exception error) {
-            sendToNode(nodeId, "comments.items",
-                put(new JSONObject(), "items", new JSONArray()));
+            JSONObject failure = new JSONObject();
+            put(failure, "items", new JSONArray());
+            put(failure, "error", "Could not load comments. Check the phone connection, API key, or video comment settings.");
+            sendToNode(nodeId, "comments.items", failure);
             runOnUiThread(() -> playbackStatus.setText("Комментарии: " + safe(error)));
         }
     }

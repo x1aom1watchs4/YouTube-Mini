@@ -23,7 +23,11 @@
 
     <div class="video-card">
       <text class="video-label">SELECTED VIDEO</text>
-      <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" alt="blank" @error="thumbnailError" />
+      <image if="{{selectedThumbnailUrl && !thumbnailFailed}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" @complete="thumbnailLoaded" @error="thumbnailError" />
+      <div if="{{!selectedThumbnailUrl || thumbnailFailed}}" class="thumb-fallback">
+        <text class="thumb-fallback-title">VIDEO COVER</text>
+        <text class="thumb-fallback-note">{{thumbnailMessage}}</text>
+      </div>
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
       <text class="search-hint">{{searchHint}}</text>
@@ -35,6 +39,17 @@
       <text class="comments-button" @click="loadComments">VIEW COMMENTS</text>
       <text class="comments-heading">PUBLIC COMMENTS</text>
       <text class="comments-text">{{commentsText}}</text>
+    </div>
+
+    <div class="audio-card">
+      <text class="video-label">AUDIO PLAYER</text>
+      <text class="audio-status">{{audioStatus}}</text>
+      <div class="audio-controls">
+        <text class="audio-control audio-play" @click="playAudio">PLAY</text>
+        <text class="audio-control" @click="pauseAudio">PAUSE</text>
+        <text class="audio-control" @click="stopAudio">STOP</text>
+      </div>
+      <text class="audio-note">Send a direct audio URL from the phone app. YouTube video links do not work as audio files.</text>
     </div>
 
     <div class="bottom">
@@ -159,6 +174,64 @@
   margin-top: 12px;
   border-radius: 12px;
   object-fit: cover;
+}
+.thumb-fallback {
+  width: 100%;
+  height: 150px;
+  margin-top: 12px;
+  border-radius: 12px;
+  background-color: #252b36;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.thumb-fallback-title {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: bold;
+}
+.thumb-fallback-note {
+  color: #aeb8c8;
+  font-size: 11px;
+  margin-top: 8px;
+  text-align: center;
+}
+.audio-card {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background-color: #171b24;
+  flex-direction: column;
+}
+.audio-status {
+  color: #ffffff;
+  font-size: 13px;
+  margin-top: 10px;
+}
+.audio-controls {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.audio-control {
+  flex: 1;
+  color: #ffffff;
+  text-align: center;
+  font-size: 12px;
+  padding: 12px 4px;
+  margin-left: 3px;
+  margin-right: 3px;
+  border-radius: 9px;
+  background-color: #303847;
+}
+.audio-play {
+  background-color: #ff3347;
+}
+.audio-note {
+  color: #8e9aaf;
+  font-size: 11px;
+  margin-top: 10px;
+  line-height: 16px;
 }
 .result-stats, .stats-panel {
   flex-direction: row;
@@ -312,6 +385,7 @@
 
 <script>
 import link from '../../common/scripts/interconnect'
+import audio from '@system.audio'
 
 export default {
   private: {
@@ -321,12 +395,24 @@ export default {
     videoSubtitle: 'Open YouTube Mini on your phone',
     selectedVideoId: '',
     selectedThumbnailUrl: '',
+    thumbnailFailed: true,
+    thumbnailMessage: 'Choose a video on your phone to load its cover.',
+    audioSource: '',
+    audioStatus: 'Waiting for an audio link from your phone.',
     commentsText: 'Tap VIEW COMMENTS to load comments.',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
     searchHint: 'Search on your phone, then send a video here.',
   },
   onInit() {
+    audio.autoplay = false
+    audio.loop = false
+    audio.onplay = () => { this.audioStatus = 'PLAYING' }
+    audio.onpause = () => { this.audioStatus = 'PAUSED' }
+    audio.onstop = () => { this.audioStatus = 'STOPPED' }
+    audio.onloadeddata = () => { this.audioStatus = 'READY TO PLAY' }
+    audio.onended = () => { this.audioStatus = 'PLAYBACK FINISHED' }
+    audio.onerror = () => { this.audioStatus = 'PLAYBACK ERROR. CHECK THE AUDIO URL.' }
     this.unsubscribeLink = link.subscribe((event) => {
       if (event.message && event.message.type === 'video.select') {
         const payload = event.message.payload || {}
@@ -334,8 +420,28 @@ export default {
         this.videoSubtitle = payload.channelTitle || 'Sent from phone'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
+        this.thumbnailFailed = !this.selectedThumbnailUrl
+        this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL was sent.'
         this.selectedLikeCount = payload.likeCount || '—'
         this.selectedCommentCount = payload.commentCount || '—'
+      }
+      if (event.message && event.message.type === 'audio.source') {
+        const payload = event.message.payload || {}
+        const source = payload.src || ''
+        if (source.indexOf('https://') !== 0 && source.indexOf('http://') !== 0) {
+          this.audioStatus = 'Invalid audio URL. Send a direct HTTP(S) audio link.'
+        } else {
+          try {
+            audio.pause()
+            audio.src = source
+            audio.meta = { title: payload.title || 'YouTube Mini audio', artist: 'YouTube Mini', album: 'Audio' }
+            audio.autoplay = false
+            this.audioSource = source
+            this.audioStatus = 'AUDIO READY. PRESS PLAY.'
+          } catch (error) {
+            this.audioStatus = 'Could not load audio source.'
+          }
+        }
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
@@ -357,6 +463,12 @@ export default {
   },
   onDestroy() {
     if (this.unsubscribeLink) this.unsubscribeLink()
+    audio.onplay = null
+    audio.onpause = null
+    audio.onstop = null
+    audio.onloadeddata = null
+    audio.onended = null
+    audio.onerror = null
   },
   retryConnection() {
     link.checkConnection()
@@ -371,12 +483,46 @@ export default {
     this.videoSubtitle = channelTitle || 'Selected on watch'
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
+    this.thumbnailFailed = !this.selectedThumbnailUrl
+    this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL was provided.'
     this.selectedLikeCount = likeCount || '—'
     this.selectedCommentCount = commentCount || '—'
     this.searchHint = 'Video sent to phone app.'
   },
+  thumbnailLoaded() {
+    this.thumbnailFailed = false
+    this.thumbnailMessage = 'Cover loaded.'
+  },
   thumbnailError() {
-    this.searchHint = 'Thumbnail failed to load. Check watch internet access.'
+    this.thumbnailFailed = true
+    this.thumbnailMessage = 'Cover could not load. Check watch internet access.'
+    this.searchHint = 'The video cover could not be downloaded.'
+  },
+  playAudio() {
+    if (!this.audioSource) {
+      this.audioStatus = 'Send a direct audio URL from the phone app first.'
+      return
+    }
+    try {
+      audio.play()
+      this.audioStatus = 'STARTING AUDIO...'
+    } catch (error) {
+      this.audioStatus = 'PLAY FAILED. CHECK THE AUDIO URL.'
+    }
+  },
+  pauseAudio() {
+    if (!this.audioSource) {
+      this.audioStatus = 'No audio source received yet.'
+      return
+    }
+    try { audio.pause() } catch (error) { this.audioStatus = 'PAUSE FAILED.' }
+  },
+  stopAudio() {
+    if (!this.audioSource) {
+      this.audioStatus = 'No audio source received yet.'
+      return
+    }
+    try { audio.stop() } catch (error) { this.audioStatus = 'STOP FAILED.' }
   },
   loadComments() {
     if (!this.selectedVideoId) {

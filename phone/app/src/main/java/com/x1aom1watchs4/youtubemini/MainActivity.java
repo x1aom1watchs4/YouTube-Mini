@@ -1,6 +1,8 @@
 package com.x1aom1watchs4.youtubemini;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -75,7 +77,21 @@ public final class MainActivity extends Activity {
                     String type = frame.optString("type", "");
                     JSONObject payload = frame.optJSONObject("payload");
                     if (payload == null) return;
-                    if ("playback.command".equals(type)) {
+                    if ("video.open".equals(type)) {
+                        final String id = payload.optString("videoId", "");
+                        if (!id.isEmpty()) {
+                            runOnUiThread(() -> {
+                                try {
+                                    Intent intent = new Intent(Intent.ACTION_VIEW,
+                                        Uri.parse("https://www.youtube.com/watch?v=" + Uri.encode(id)));
+                                    startActivity(intent);
+                                    playbackStatus.setText("Открываем видео в YouTube");
+                                } catch (Exception error) {
+                                    playbackStatus.setText("Не удалось открыть YouTube: " + safe(error));
+                                }
+                            });
+                        }
+                    } else if ("playback.command".equals(type)) {
                         final String action = payload.optString("action", "unknown");
                         runOnUiThread(() ->
                             playbackStatus.setText("Команда с часов: " + action + " (плеер пока не подключён)")

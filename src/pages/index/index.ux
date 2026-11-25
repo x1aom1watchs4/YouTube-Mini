@@ -484,7 +484,7 @@ export default {
           }
         }
       }
-      if (event.message && event.message.type === 'comments.image') {\n        const payload = event.message.payload || {}\n        const bytes = this.decodeBase64(payload.base64 || '')\n        if (bytes && payload.id) {\n          const uri = 'internal://files/comments/' + payload.id + '.png'\n          file.writeArrayBuffer({ uri, buffer: bytes, success: () => {\n            this.commentImages.push({ uri })\n            this.commentsText = 'Translated comments are shown as images.'\n          }, fail: () => { this.commentsText = 'Could not save comment image.' } })\n        }\n      }\n      if (event.message && event.message.type === 'comments.items') {
+      if (event.message && event.message.type === 'comments.image') {\n        const payload = event.message.payload || {}\n        const bytes = this.decodeBase64(payload.base64 || '')\n        if (bytes && payload.id) {\n          const uri = 'internal://files/comments/' + payload.id + '.png'\n          file.writeArrayBuffer({ uri, buffer: bytes.buffer, success: () => {\n            this.commentImages.push({ uri })\n            this.commentsText = 'Translated comments are shown as images.'\n          }, fail: () => { this.commentsText = 'Could not save comment image.' } })\n        }\n      }\n      if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
         const items = Array.isArray(payload.items) ? payload.items : []
         this.commentsText = payload.error || (items.length

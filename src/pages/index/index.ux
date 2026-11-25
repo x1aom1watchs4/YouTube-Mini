@@ -51,6 +51,13 @@
       <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
       <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
       <text class="comments-text">{{commentsText}}</text>
+      <text class="video-label">АУДИОФАЙЛ / РАЗРЕШЁННЫЙ ПОТОК</text>
+      <text class="hint">{{audioHint}}</text>
+      <div class="controls">
+        <text class="control primary" @click="audioPlay">▶</text>
+        <text class="control" @click="audioPause">Ⅱ</text>
+        <text class="control" @click="audioStop">■</text>
+      </div>
       <div class="controls">
         <text class="control" @click="sendPause">Ⅱ</text>
         <text class="control primary" @click="sendPlay">▶</text>
@@ -305,6 +312,7 @@
 
 <script>
 import link from '../../common/scripts/interconnect'
+import audio from '@system.audio'
 
 export default {
   private: {
@@ -316,6 +324,7 @@ export default {
     selectedThumbnailUrl: '',
     playbackHint: 'Плеер часов пока проверяется',
     commentsText: 'Комментарии ещё не загружены',
+    audioHint: 'Источник аудио можно передать из приложения телефона',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
     videoResults: [],
@@ -350,6 +359,17 @@ export default {
         this.searchHint = this.videoResults.length
           ? 'Найдено: ' + this.videoResults.length
           : 'Ничего не найдено'
+      }
+      if (event.message && event.message.type === 'audio.source') {
+        const payload = event.message.payload || {}
+        if (payload.src) {
+          audio.src = payload.src
+          audio.autoplay = false
+          audio.meta = { title: payload.title || 'YouTube Mini audio', artist: 'YouTube Mini', album: '' }
+          this.audioHint = 'Аудиоисточник получен. Нажми ▶'
+        } else {
+          this.audioHint = 'Пустой аудиоадрес'
+        }
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
@@ -422,6 +442,18 @@ export default {
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
     this.searchHint = 'Видео отправлено в приложение телефона'
+  },
+  audioPlay() {
+    try { audio.play(); this.audioHint = 'Воспроизведение аудио' }
+    catch (error) { this.audioHint = 'Не удалось запустить аудио: ' + String(error) }
+  },
+  audioPause() {
+    try { audio.pause(); this.audioHint = 'Пауза' }
+    catch (error) { this.audioHint = 'Ошибка паузы' }
+  },
+  audioStop() {
+    try { audio.stop(); this.audioHint = 'Остановлено' }
+    catch (error) { this.audioHint = 'Ошибка остановки' }
   },
   thumbnailError() {
     this.playbackHint = 'Не удалось загрузить обложку. Проверь интернет на часах.'

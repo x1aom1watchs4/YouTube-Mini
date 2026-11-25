@@ -1,6 +1,6 @@
 package com.x1aom1watchs4.youtubemini;
 
-import android.app.Activity;
+import android.app.Activity;\nimport android.graphics.Bitmap;\nimport android.graphics.Canvas;\nimport android.graphics.Paint;\nimport android.graphics.Typeface;\nimport android.util.Base64;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -25,14 +25,14 @@ import com.xiaomi.xms.wearable.node.NodeApi;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
+import java.io.BufferedReader;\nimport java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.List;\nimport com.google.mlkit.nl.translate.Translation;\nimport com.google.mlkit.nl.translate.Translator;\nimport com.google.mlkit.nl.translate.TranslatorOptions;\nimport com.google.mlkit.nl.translate.TranslateLanguage;\nimport com.google.mlkit.nl.languageid.LanguageIdentification;\nimport com.google.mlkit.nl.languageid.LanguageIdentifier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -539,12 +539,89 @@ public final class MainActivity extends Activity {
                 if (connection != null) connection.disconnect();
             }
             sendToNode(nodeId, "comments.items", put(new JSONObject(), "items", comments));
+            translateAndSendCommentImages(comments, nodeId);
         } catch (Exception error) {
             JSONObject failure = new JSONObject();
             put(failure, "items", new JSONArray());
             put(failure, "error", "Could not load comments. Check the phone connection, API key, or video comment settings.");
             sendToNode(nodeId, "comments.items", failure);
             runOnUiThread(() -> playbackStatus.setText("Комментарии: " + safe(error)));
+        }
+    }
+
+    private void translateAndSendCommentImages(JSONArray comments, String nodeId) {
+        LanguageIdentifier languageIdentifier = LanguageIdentification.getClient();
+        for (int i = 0; i < comments.length(); i++) {
+            final int index = i;
+            JSONObject row = comments.optJSONObject(i);
+            if (row == null) continue;
+            String author = row.optString("author", "User");
+            String original = row.optString("text", "");
+            languageIdentifier.identifyLanguage(original).addOnSuccessListener(language -> {
+                if (language == null || "und".equals(language) || "ru".equals(language)) {
+                    sendCommentPng(nodeId, index, author, original);
+                    return;
+                }
+                String source = TranslateLanguage.fromLanguageTag(language);
+                if (source == null || TranslateLanguage.RUSSIAN.equals(source)) {
+                    sendCommentPng(nodeId, index, author, original);
+                    return;
+                }
+                Translator translator = com.google.mlkit.nl.translate.Translation.getClient(
+                    new TranslatorOptions.Builder().setSourceLanguage(source)
+                        .setTargetLanguage(TranslateLanguage.RUSSIAN).build());
+                translator.downloadModelIfNeeded().addOnSuccessListener(unused ->
+                    translator.translate(original).addOnSuccessListener(translated -> {
+                        sendCommentPng(nodeId, index, author, translated);
+                        translator.close();
+                    }).addOnFailureListener(error -> {
+                        sendCommentPng(nodeId, index, author, original);
+                        translator.close();
+                    })
+                ).addOnFailureListener(error -> {
+                    sendCommentPng(nodeId, index, author, original);
+                    translator.close();
+                });
+            }).addOnFailureListener(error -> sendCommentPng(nodeId, index, author, original));
+        }
+    }
+
+    private void sendCommentPng(String nodeId, int index, String author, String text) {
+        try {
+            String safeText = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+            if (safeText.length() > 150) safeText = safeText.substring(0, 147) + "...";
+            Bitmap bitmap = Bitmap.createBitmap(280, 116, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(android.graphics.Color.rgb(37, 43, 54));
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(android.graphics.Color.WHITE);
+            paint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            paint.setTextSize(15f);
+            canvas.drawText(author.length() > 26 ? author.substring(0, 26) : author, 10, 21, paint);
+            paint.setTextSize(13f);
+            String[] words = safeText.split(" ");
+            StringBuilder line = new StringBuilder();
+            int y = 44;
+            for (String word : words) {
+                String candidate = line.length() == 0 ? word : line + " " + word;
+                if (paint.measureText(candidate) > 258 && line.length() > 0) {
+                    canvas.drawText(line.toString(), 10, y, paint);
+                    y += 18;
+                    line = new StringBuilder(word);
+                    if (y > 98) break;
+                } else line = new StringBuilder(candidate);
+            }
+            if (y <= 98 && line.length() > 0) canvas.drawText(line.toString(), 10, y, paint);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
+            bitmap.recycle();
+            String encoded = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+            JSONObject payload = new JSONObject();
+            put(payload, "id", "comment" + index);
+            put(payload, "base64", encoded);
+            sendToNode(nodeId, "comments.image", payload);
+        } catch (Exception error) {
+            runOnUiThread(() -> status.setText("Comment image error: " + safe(error)));
         }
     }
 

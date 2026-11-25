@@ -11,31 +11,35 @@
     </div>
 
     <div class="search-panel">
-      <text class="video-label">ВЫБОР ВИДЕО</text>
-      <text class="search-hint">Найди ролик в приложении на телефоне и отправь его на часы. Здесь появятся обложка, лайки и комментарии.</text>
+      <text class="video-label">VIDEO SELECTION</text>
+      <text class="search-hint">Choose a video in the phone app and send it to your watch.</text>
     </div>
 
     <div class="hero">
-      <text class="eyebrow">ВАША МУЗЫКА И ВИДЕО</text>
-      <text class="headline">Видео рядом.</text>
-      <text class="sub">Выберите ролик на телефоне и отправьте его на часы.</text>
+      <text class="eyebrow">YOUTUBE ON YOUR WRIST</text>
+      <text class="headline">Your video</text>
+      <text class="sub">Select a video in the phone app.</text>
     </div>
 
     <div class="video-card">
-      <text class="video-label">СЕЙЧАС ВЫБРАНО</text>
+      <text class="video-label">SELECTED VIDEO</text>
       <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" alt="blank" @error="thumbnailError" />
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
       <text class="search-hint">{{searchHint}}</text>
-      <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
-      <text class="selected-stats">♥ {{selectedLikeCount}} · Комментарии: {{selectedCommentCount}}</text>
-      <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
+      <text class="open-video" @click="openVideoOnPhone">OPEN ON PHONE</text>
+      <div class="stats-panel">
+        <div class="stat"><text class="stat-value">{{selectedLikeCount}}</text><text class="stat-label">LIKES</text></div>
+        <div class="stat"><text class="stat-value">{{selectedCommentCount}}</text><text class="stat-label">COMMENTS</text></div>
+      </div>
+      <text class="comments-button" @click="loadComments">VIEW COMMENTS</text>
+      <text class="comments-heading">PUBLIC COMMENTS</text>
       <text class="comments-text">{{commentsText}}</text>
     </div>
 
     <div class="bottom">
-      <text class="retry" @click="retryConnection">ПРОВЕРИТЬ СВЯЗЬ</text>
-      <text class="foot">Телефон ↔ часы</text>
+      <text class="retry" @click="retryConnection">CHECK CONNECTION</text>
+      <text class="foot">PHONE - WATCH</text>
     </div>
   </scroll>
 </template>
@@ -156,10 +160,34 @@
   border-radius: 12px;
   object-fit: cover;
 }
-.result-stats, .selected-stats {
+.result-stats, .stats-panel {
+  flex-direction: row;
+  justify-content: space-around;
+  margin-top: 14px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  background-color: #252b36;
+}
+.stat {
+  flex: 1;
+  align-items: center;
+}
+.stat-value {
+  color: #ffffff;
+  font-size: 25px;
+  font-weight: bold;
+}
+.stat-label {
   color: #aeb8c8;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 4px;
+  font-weight: bold;
+}
+.comments-heading {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 14px;
 }
 .comments-button {
   margin-top: 8px;
@@ -288,22 +316,22 @@ import link from '../../common/scripts/interconnect'
 export default {
   private: {
     connected: false,
-    connectionLabel: 'Нет соединения',
-    videoTitle: 'Пока ничего не выбрано',
-    videoSubtitle: 'Откройте YouTube Mini на телефоне',
+    connectionLabel: 'Not connected',
+    videoTitle: 'No video selected',
+    videoSubtitle: 'Open YouTube Mini on your phone',
     selectedVideoId: '',
     selectedThumbnailUrl: '',
-    commentsText: 'Комментарии ещё не загружены',
+    commentsText: 'Tap VIEW COMMENTS to load comments.',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
-    searchHint: 'Поиск выполняется на телефоне',
+    searchHint: 'Search on your phone, then send a video here.',
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
       if (event.message && event.message.type === 'video.select') {
         const payload = event.message.payload || {}
-        this.videoTitle = payload.title || 'Видео выбрано'
-        this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
+        this.videoTitle = payload.title || 'Video selected'
+        this.videoSubtitle = payload.channelTitle || 'Sent from phone'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
         this.selectedLikeCount = payload.likeCount || '—'
@@ -312,17 +340,17 @@ export default {
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
         const items = Array.isArray(payload.items) ? payload.items : []
-        this.commentsText = items.length
+        this.commentsText = payload.error || (items.length
           ? items.map((item, index) => (index + 1) + '. ' + item.author + ': ' + item.text).join('\n\n')
-          : 'Публичных комментариев нет или они отключены'
+          : 'No public comments found. Comments may be disabled.')
       }
       if (event.message && event.message.type === 'video.search.error') {
         const payload = event.message.payload || {}
-        this.searchHint = payload.message || 'Не удалось выполнить поиск'
+        this.searchHint = payload.message || 'Search failed'
       }
       if (event.state) {
         this.connected = event.state === 'connected'
-        this.connectionLabel = this.connected ? 'Телефон подключён' : 'Нет соединения'
+        this.connectionLabel = this.connected ? 'Phone connected' : 'Not connected'
       }
     })
     link.checkConnection()
@@ -336,40 +364,40 @@ export default {
   selectVideo(videoId, title, channelTitle, thumbnailUrl, likeCount, commentCount) {
     const payload = { videoId, title, channelTitle, thumbnailUrl }
     if (!link.send('video.select', payload)) {
-      this.searchHint = 'Нет соединения'
+      this.searchHint = 'Not connected'
       return
     }
-    this.videoTitle = title || 'Видео выбрано'
-    this.videoSubtitle = channelTitle || 'Выбрано на часах'
+    this.videoTitle = title || 'Video selected'
+    this.videoSubtitle = channelTitle || 'Selected on watch'
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
     this.selectedLikeCount = likeCount || '—'
     this.selectedCommentCount = commentCount || '—'
-    this.searchHint = 'Видео отправлено в приложение телефона'
+    this.searchHint = 'Video sent to phone app.'
   },
   thumbnailError() {
-    this.searchHint = 'Обложка не загрузилась. Проверь подключение часов к интернету.'
+    this.searchHint = 'Thumbnail failed to load. Check watch internet access.'
   },
   loadComments() {
     if (!this.selectedVideoId) {
-      this.commentsText = 'Сначала выбери видео'
+      this.commentsText = 'Select a video first.'
       return
     }
     if (!link.send('comments.load', { videoId: this.selectedVideoId })) {
-      this.commentsText = 'Нет соединения с телефоном'
+      this.commentsText = 'Phone is not connected.'
     } else {
-      this.commentsText = 'Загружаем публичные комментарии…'
+      this.commentsText = 'Loading public comments...'
     }
   },
   openVideoOnPhone() {
     if (!this.selectedVideoId) {
-      this.searchHint = 'Сначала выбери видео'
+      this.searchHint = 'Select a video first.'
       return
     }
     if (!link.send('video.open', { videoId: this.selectedVideoId })) {
-      this.searchHint = 'Нет соединения с телефоном'
+      this.searchHint = 'Phone is not connected.'
     } else {
-      this.searchHint = 'Видео открывается на телефоне'
+      this.searchHint = 'Opening video on phone...'
     }
   },
 }

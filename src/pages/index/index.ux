@@ -669,7 +669,7 @@ export default {
     }
     return new Uint8Array(out)
   },
-
+  loadComments() {
     if (!this.selectedVideoId) {
       this.commentsText = 'Select a video first.'
       return

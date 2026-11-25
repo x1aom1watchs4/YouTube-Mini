@@ -289,35 +289,9 @@ public final class MainActivity extends Activity {
                     listeningNodeId = "";
                 }
                 activeNode = selectedNode;
-                if (nextId.equals(listeningNodeId)) {
-                    authorizeAndOpenWatch(selectedNode);
-                    return;
-                }
-                // A slow SDK callback must not cause duplicate addListener requests
-                // on the next 15-second connection poll.
-                if (listenerRegistrationInFlight) return;
-
-                listenerRegistrationInFlight = true;
-                try {
-                    messageApi.addListener(nextId, messageListener)
-                        .addOnSuccessListener(unused -> {
-                            listenerRegistrationInFlight = false;
-                            listeningNodeId = nextId;
-                            runOnUiThread(() -> status.setText("Часы найдены. Проверяем разрешение…"));
-                            authorizeAndOpenWatch(selectedNode);
-                        })
-                        .addOnFailureListener(error -> {
-                            listenerRegistrationInFlight = false;
-                            runOnUiThread(() -> status.setText(
-                                "Не удалось включить приём сообщений: " + safe(error)
-                            ));
-                        });
-                } catch (Exception error) {
-                    listenerRegistrationInFlight = false;
-                    runOnUiThread(() -> status.setText(
-                        "Ошибка включения приёма сообщений: " + safe(error)
-                    ));
-                }
+                // XMS message reception may be denied until DEVICE_MANAGER is granted.
+                // Check/request watch permission first; register the listener only afterwards.
+                authorizeAndOpenWatch(selectedNode);
             })
             .addOnFailureListener(error -> {
                 nodeQueryInFlight = false;
@@ -372,6 +346,7 @@ public final class MainActivity extends Activity {
                         return;
                     }
                     permissionRequestNodeId = "";
+                    registerMessageListener(node);
                     launchWatchApp(nodeId);
                 })
                 .addOnFailureListener(error -> runOnUiThread(() ->
@@ -381,6 +356,32 @@ public final class MainActivity extends Activity {
             runOnUiThread(() ->
                 status.setText("Ошибка проверки разрешения: " + safe(error))
             );
+        }
+    }
+
+    private void registerMessageListener(Node node) {
+        if (node == null || node.id == null || node.id.isEmpty()
+                || node.id.equals(listeningNodeId) || listenerRegistrationInFlight) return;
+        final String nodeId = node.id;
+        listenerRegistrationInFlight = true;
+        try {
+            messageApi.addListener(nodeId, messageListener)
+                .addOnSuccessListener(unused -> {
+                    listenerRegistrationInFlight = false;
+                    listeningNodeId = nodeId;
+                    runOnUiThread(() -> status.setText("Разрешение получено. Приём сообщений включён."));
+                })
+                .addOnFailureListener(error -> {
+                    listenerRegistrationInFlight = false;
+                    runOnUiThread(() -> status.setText(
+                        "Разрешение проверено, но приём сообщений отклонён: " + safe(error)
+                    ));
+                });
+        } catch (Exception error) {
+            listenerRegistrationInFlight = false;
+            runOnUiThread(() -> status.setText(
+                "Ошибка регистрации приёма сообщений: " + safe(error)
+            ));
         }
     }
 

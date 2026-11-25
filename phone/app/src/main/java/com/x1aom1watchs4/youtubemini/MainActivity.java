@@ -74,7 +74,12 @@ public final class MainActivity extends Activity {
     private Uri selectedAudioUri;
     private String selectedAudioName = "";
     private static final int AUDIO_CHUNK_BYTES = 5000;
-    private static final int MAX_AUDIO_BYTES = 15 * 1024 * 1024;
+    private static final int MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+    private byte[] pendingAudioBytes;
+    private String pendingAudioTransferId = "";
+    private String pendingAudioNodeId = "";
+    private int pendingAudioTotal;
+    private int pendingAudioNextChunk;
     private LinearLayout results;
 
     private final OnMessageReceivedListener messageListener =
@@ -90,7 +95,31 @@ public final class MainActivity extends Activity {
                     String type = frame.optString("type", "");
                     JSONObject payload = frame.optJSONObject("payload");
                     if (payload == null) return;
-                    if ("video.open".equals(type)) {
+                    if ("audio.file.ack".equals(type)) {
+                        String transferId = payload.optString("id", "");
+                        int acknowledged = payload.optInt("index", -1);
+                        if (transferId.equals(pendingAudioTransferId) && acknowledged == pendingAudioNextChunk) {
+                            pendingAudioNextChunk++;
+                            if (pendingAudioNextChunk < pendingAudioTotal) {
+                                sendAudioChunk(pendingAudioNodeId, pendingAudioTransferId, selectedAudioName,
+                                    pendingAudioBytes, pendingAudioNextChunk, pendingAudioTotal);
+                            } else {
+                                runOnUiThread(() -> playbackStatus.setText("All audio chunks saved. Waiting for watch..."));
+                            }
+                        }
+                    } else if ("audio.file.complete".equals(type)) {
+                        if (payload.optString("id", "").equals(pendingAudioTransferId)) {
+                            pendingAudioBytes = null;
+                            pendingAudioTransferId = "";
+                            runOnUiThread(() -> playbackStatus.setText("Audio file is ready on the watch."));
+                        }
+                    } else if ("audio.file.error".equals(type)) {
+                        if (payload.optString("id", "").equals(pendingAudioTransferId)) {
+                            pendingAudioBytes = null;
+                            pendingAudioTransferId = "";
+                            runOnUiThread(() -> playbackStatus.setText("Watch could not save audio file."));
+                        }
+                    } else if ("video.open".equals(type)) {
                         final String id = payload.optString("videoId", "");
                         if (!id.isEmpty()) {
                             runOnUiThread(() -> {
@@ -348,12 +377,17 @@ public final class MainActivity extends Activity {
                 if (bytes.length == 0) throw new IllegalStateException("Selected file is empty.");
                 int total = (bytes.length + AUDIO_CHUNK_BYTES - 1) / AUDIO_CHUNK_BYTES;
                 String transferId = "aud" + System.currentTimeMillis();
+                pendingAudioBytes = bytes;
+                pendingAudioTransferId = transferId;
+                pendingAudioNodeId = node.id;
+                pendingAudioTotal = total;
+                pendingAudioNextChunk = 0;
                 JSONObject start = new JSONObject();
                 put(start, "id", transferId);
                 put(start, "name", selectedAudioName);
                 put(start, "total", total);
                 sendAudioFrame(node.id, "audio.file.start", start, () ->
-                    sendAudioChunk(node.id, transferId, selectedAudioName, bytes, 0, total));
+                    runOnUiThread(() -> playbackStatus.setText("Starting safe audio transfer...")));
             } catch (Exception error) {
                 runOnUiThread(() -> playbackStatus.setText("File read failed: " + safe(error)));
             }
@@ -372,18 +406,8 @@ public final class MainActivity extends Activity {
         put(payload, "index", index);
         put(payload, "total", total);
         put(payload, "data", Base64.encodeToString(chunk, Base64.NO_WRAP));
-        sendAudioFrame(nodeId, "audio.file.chunk", payload, () -> {
-            runOnUiThread(() -> playbackStatus.setText("Sending audio: " + (index + 1) + "/" + total));
-            if (index + 1 < total) {
-                sendAudioChunk(nodeId, transferId, name, bytes, index + 1, total);
-            } else {
-                JSONObject done = new JSONObject();
-                put(done, "id", transferId);
-                put(done, "name", name);
-                sendAudioFrame(nodeId, "audio.file.finish", done, () ->
-                    runOnUiThread(() -> playbackStatus.setText("File transfer sent to watch.")));
-            }
-        });
+        sendAudioFrame(nodeId, "audio.file.chunk", payload, () ->
+            runOnUiThread(() -> playbackStatus.setText("Sending audio: " + (index + 1) + "/" + total)));
     }
 
     private void sendAudioFrame(String nodeId, String type, JSONObject payload, Runnable success) {

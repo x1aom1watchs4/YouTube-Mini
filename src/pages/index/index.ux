@@ -11,31 +11,8 @@
     </div>
 
     <div class="search-panel">
-      <text class="video-label">ПОИСК НА ТЕЛЕФОНЕ</text>
-      <text class="query-display">{{searchQuery || 'Набери запрос ниже'}}</text>
-      <div class="keyboard-row">
-        <text class="key" for="{{keyboardRow1}}" @click="appendSearch($item)">{{$item}}</text>
-      </div>
-      <div class="keyboard-row">
-        <text class="key" for="{{keyboardRow2}}" @click="appendSearch($item)">{{$item}}</text>
-      </div>
-      <div class="keyboard-row">
-        <text class="key" for="{{keyboardRow3}}" @click="appendSearch($item)">{{$item}}</text>
-        <text class="key key-action" @click="deleteSearch">⌫</text>
-      </div>
-      <div class="keyboard-row">
-        <text class="key key-action" @click="switchKeyboard">{{keyboardLanguage}}</text>
-        <text class="key key-wide" @click="appendSearch(' ')">ПРОБЕЛ</text>
-        <text class="key key-action" @click="clearSearch">×</text>
-      </div>
-      <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
-      <text class="search-hint">{{searchHint}}</text>
-      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle, $item.thumbnailUrl, $item.likeCount, $item.commentCount)">
-        <image class="result-thumb" src="{{$item.thumbnailUrl}}" alt="blank" @error="thumbnailError" />
-        <text class="result-title">{{$item.title}}</text>
-        <text class="result-channel">{{$item.channelTitle}}</text>
-        <text class="result-stats">♥ {{$item.likeCount || '—'}} · Комментарии: {{$item.commentCount || '—'}}</text>
-      </div>
+      <text class="video-label">ВЫБОР ВИДЕО</text>
+      <text class="search-hint">Найди ролик в приложении на телефоне и отправь его на часы. Здесь появятся обложка, лайки и комментарии.</text>
     </div>
 
     <div class="hero">
@@ -49,6 +26,7 @@
       <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" alt="blank" @error="thumbnailError" />
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
+      <text class="search-hint">{{searchHint}}</text>
       <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
       <text class="selected-stats">♥ {{selectedLikeCount}} · Комментарии: {{selectedCommentCount}}</text>
       <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
@@ -318,23 +296,7 @@ export default {
     commentsText: 'Комментарии ещё не загружены',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
-    searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
-    videoResults: [],
-    keyboardRow1: ['q','w','e','r','t','y','u','i','o','p'],
-    keyboardRow2: ['a','s','d','f','g','h','j','k','l'],
-    keyboardRow3: ['z','x','c','v','b','n','m'],
-    keyboardLanguage: 'EN',
-    keyboardRowsEn: [
-      ['q','w','e','r','t','y','u','i','o','p'],
-      ['a','s','d','f','g','h','j','k','l'],
-      ['z','x','c','v','b','n','m']
-    ],
-    keyboardRowsRu: [
-      ['й','ц','у','к','е','н','г','ш','щ','з'],
-      ['ф','ы','в','а','п','р','о','л','д'],
-      ['я','ч','с','м','и','т','ь','б','ю']
-    ]
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -344,13 +306,6 @@ export default {
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
-      }
-      if (event.message && event.message.type === 'video.results') {
-        const payload = event.message.payload || {}
-        this.videoResults = Array.isArray(payload.items) ? payload.items : []
-        this.searchHint = this.videoResults.length
-          ? 'Найдено: ' + this.videoResults.length
-          : 'Ничего не найдено'
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
@@ -375,42 +330,6 @@ export default {
   },
   retryConnection() {
     link.checkConnection()
-  },
-  switchKeyboard() {
-    if (this.keyboardLanguage === 'EN') {
-      this.keyboardLanguage = 'RU'
-      this.keyboardRow1 = this.keyboardRowsRu[0]
-      this.keyboardRow2 = this.keyboardRowsRu[1]
-      this.keyboardRow3 = this.keyboardRowsRu[2]
-    } else {
-      this.keyboardLanguage = 'EN'
-      this.keyboardRow1 = this.keyboardRowsEn[0]
-      this.keyboardRow2 = this.keyboardRowsEn[1]
-      this.keyboardRow3 = this.keyboardRowsEn[2]
-    }
-  },
-  appendSearch(value) {
-    if (this.searchQuery.length < 80) this.searchQuery += value
-  },
-  deleteSearch() {
-    this.searchQuery = this.searchQuery.slice(0, -1)
-  },
-  clearSearch() {
-    this.searchQuery = ''
-    this.videoResults = []
-  },
-  searchOnPhone() {
-    const query = (this.searchQuery || '').trim()
-    if (!query) {
-      this.searchHint = 'Введи поисковый запрос'
-      return
-    }
-    if (!link.send('video.search', { query })) {
-      this.searchHint = 'Нет соединения'
-      return
-    }
-    this.searchHint = 'Ищем на телефоне…'
-    this.videoResults = []
   },
   selectVideo(videoId, title, channelTitle, thumbnailUrl, likeCount, commentCount) {
     const payload = { videoId, title, channelTitle, thumbnailUrl }

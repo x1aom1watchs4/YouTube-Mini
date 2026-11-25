@@ -11,8 +11,34 @@
     </div>
 
     <div class="search-panel">
-      <text class="video-label">VIDEO SELECTION</text>
-      <text class="search-hint">Choose a video in the phone app and send it to your watch.</text>
+      <text class="video-label">SEARCH YOUTUBE</text>
+      <text class="query-display">{{searchQuery || 'Type a video name...'}}</text>
+      <div class="keyboard-row">
+        <text class="key" @click="keyA">A</text><text class="key" @click="keyB">B</text><text class="key" @click="keyC">C</text><text class="key" @click="keyD">D</text><text class="key" @click="keyE">E</text><text class="key" @click="keyF">F</text><text class="key" @click="keyG">G</text><text class="key" @click="keyH">H</text><text class="key" @click="keyI">I</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key" @click="keyJ">J</text><text class="key" @click="keyK">K</text><text class="key" @click="keyL">L</text><text class="key" @click="keyM">M</text><text class="key" @click="keyN">N</text><text class="key" @click="keyO">O</text><text class="key" @click="keyP">P</text><text class="key" @click="keyQ">Q</text><text class="key" @click="keyR">R</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key" @click="keyS">S</text><text class="key" @click="keyT">T</text><text class="key" @click="keyU">U</text><text class="key" @click="keyV">V</text><text class="key" @click="keyW">W</text><text class="key" @click="keyX">X</text><text class="key" @click="keyY">Y</text><text class="key" @click="keyZ">Z</text>
+      </div>
+      <div class="keyboard-row">
+        <text class="key key-wide" @click="searchSpace">SPACE</text>
+        <text class="key key-action" @click="searchBackspace">DEL</text>
+        <text class="key key-action" @click="searchClear">CLEAR</text>
+      </div>
+      <text class="search-button" @click="searchFromWatch">SEARCH ON PHONE</text>
+      <text class="search-hint">{{searchHint}}</text>
+    </div>
+    <div class="watch-results">
+      <text class="video-label">SEARCH RESULTS</text>
+      <div class="result" for="{{videoResults}}" @click="selectSearchResult($item)">
+        <image class="result-thumb" src="{{$item.thumbnailUrl}}" />
+        <text class="result-title">{{$item.title}}</text>
+        <text class="result-channel">{{$item.channelTitle}}</text>
+        <text class="result-channel">LIKES: {{$item.likeCount}}  COMMENTS: {{$item.commentCount}}</text>
+      </div>
+      <text if="{{videoResults.length === 0}}" class="search-hint">Results from your phone will appear here.</text>
     </div>
 
     <div class="hero">
@@ -149,6 +175,13 @@
   background-color: #ff3347;
   border-radius: 10px;
   font-size: 14px;
+}
+.watch-results {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background-color: #171b24;
+  flex-direction: column;
 }
 .search-hint {
   margin-top: 8px;
@@ -402,7 +435,9 @@ export default {
     commentsText: 'Tap VIEW COMMENTS to load comments.',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
-    searchHint: 'Search on your phone, then send a video here.',
+    searchHint: 'Enter a title, then search using your phone.',
+    searchQuery: '',
+    videoResults: [],
   },
   onInit() {
     audio.autoplay = false
@@ -450,6 +485,11 @@ export default {
           ? items.map((item, index) => (index + 1) + '. ' + item.author + ': ' + item.text).join('\n\n')
           : 'No public comments found. Comments may be disabled.')
       }
+      if (event.message && event.message.type === 'video.results') {
+        const payload = event.message.payload || {}
+        this.videoResults = Array.isArray(payload.items) ? payload.items : []
+        this.searchHint = this.videoResults.length ? 'Tap a result to select it.' : 'No videos found.'
+      }
       if (event.message && event.message.type === 'video.search.error') {
         const payload = event.message.payload || {}
         this.searchHint = payload.message || 'Search failed'
@@ -472,6 +512,64 @@ export default {
   },
   retryConnection() {
     link.checkConnection()
+  },
+  appendSearchKey(value) {
+    if (this.searchQuery.length < 60) this.searchQuery += value
+  },
+  keyA() { this.appendSearchKey('a') },
+  keyB() { this.appendSearchKey('b') },
+  keyC() { this.appendSearchKey('c') },
+  keyD() { this.appendSearchKey('d') },
+  keyE() { this.appendSearchKey('e') },
+  keyF() { this.appendSearchKey('f') },
+  keyG() { this.appendSearchKey('g') },
+  keyH() { this.appendSearchKey('h') },
+  keyI() { this.appendSearchKey('i') },
+  keyJ() { this.appendSearchKey('j') },
+  keyK() { this.appendSearchKey('k') },
+  keyL() { this.appendSearchKey('l') },
+  keyM() { this.appendSearchKey('m') },
+  keyN() { this.appendSearchKey('n') },
+  keyO() { this.appendSearchKey('o') },
+  keyP() { this.appendSearchKey('p') },
+  keyQ() { this.appendSearchKey('q') },
+  keyR() { this.appendSearchKey('r') },
+  keyS() { this.appendSearchKey('s') },
+  keyT() { this.appendSearchKey('t') },
+  keyU() { this.appendSearchKey('u') },
+  keyV() { this.appendSearchKey('v') },
+  keyW() { this.appendSearchKey('w') },
+  keyX() { this.appendSearchKey('x') },
+  keyY() { this.appendSearchKey('y') },
+  keyZ() { this.appendSearchKey('z') },
+  searchSpace() { this.appendSearchKey(' ') },
+  searchBackspace() { this.searchQuery = this.searchQuery.slice(0, -1) },
+  searchClear() { this.searchQuery = ''; this.videoResults = [] },
+  searchFromWatch() {
+    const query = this.searchQuery.trim()
+    if (!query) {
+      this.searchHint = 'Type something to search.'
+      return
+    }
+    if (!link.send('video.search', { query })) {
+      this.searchHint = 'Phone is not connected.'
+      return
+    }
+    this.searchHint = 'Searching on phone...'
+    this.videoResults = []
+  },
+  selectSearchResult(item) {
+    if (!item) return
+    this.videoTitle = item.title || 'Selected video'
+    this.videoSubtitle = item.channelTitle || ''
+    this.selectedVideoId = item.videoId || ''
+    this.selectedThumbnailUrl = item.thumbnailUrl || ''
+    this.thumbnailFailed = !this.selectedThumbnailUrl
+    this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL.'
+    this.selectedLikeCount = item.likeCount || '—'
+    this.selectedCommentCount = item.commentCount || '—'
+    if (!link.send('video.select', item)) this.searchHint = 'Phone is not connected.'
+    else this.searchHint = 'Video selected.'
   },
   selectVideo(videoId, title, channelTitle, thumbnailUrl, likeCount, commentCount) {
     const payload = { videoId, title, channelTitle, thumbnailUrl }

@@ -1,6 +1,11 @@
 package com.x1aom1watchs4.youtubemini;
 
-import android.app.Activity;\nimport android.graphics.Bitmap;\nimport android.graphics.Canvas;\nimport android.graphics.Paint;\nimport android.graphics.Typeface;\nimport android.util.Base64;
+import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.util.Base64;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -539,7 +544,7 @@ public final class MainActivity extends Activity {
                 if (connection != null) connection.disconnect();
             }
             sendToNode(nodeId, "comments.items", put(new JSONObject(), "items", comments));
-            translateAndSendCommentImages(comments, nodeId);
+            sendCommentImages(comments, nodeId);
         } catch (Exception error) {
             JSONObject failure = new JSONObject();
             put(failure, "items", new JSONArray());
@@ -549,7 +554,7 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void translateAndSendCommentImages(JSONArray comments, String nodeId) {
+    private void sendCommentImages(JSONArray comments, String nodeId) {
         for (int i = 0; i < comments.length(); i++) {
             JSONObject row = comments.optJSONObject(i);
             if (row == null) continue;

@@ -34,6 +34,7 @@
         <image class="result-thumb" src="{{$item.thumbnailUrl}}" alt="blank" @error="thumbnailError" />
         <text class="result-title">{{$item.title}}</text>
         <text class="result-channel">{{$item.channelTitle}}</text>
+        <text class="result-stats">♥ {{$item.likeCount || '—'}} · Комментарии: {{$item.commentCount || '—'}}</text>
       </div>
     </div>
 
@@ -49,6 +50,7 @@
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
       <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
+      <text class="selected-stats">♥ {{selectedLikeCount}} · Комментарии: {{selectedCommentCount}}</text>
       <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
       <text class="comments-text">{{commentsText}}</text>
       <text class="video-label">АУДИОФАЙЛ / РАЗРЕШЁННЫЙ ПОТОК</text>
@@ -189,6 +191,11 @@
   border-radius: 12px;
   object-fit: cover;
 }
+.result-stats, .selected-stats {
+  color: #aeb8c8;
+  font-size: 11px;
+  margin-top: 4px;
+}
 .comments-button {
   margin-top: 8px;
   padding: 10px;
@@ -324,6 +331,8 @@ export default {
     selectedThumbnailUrl: '',
     playbackHint: 'Плеер часов пока проверяется',
     commentsText: 'Комментарии ещё не загружены',
+    selectedLikeCount: '—',
+    selectedCommentCount: '—',
     audioHint: 'Источник аудио можно передать из приложения телефона',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
@@ -441,6 +450,8 @@ export default {
     this.videoSubtitle = channelTitle || 'Выбрано на часах'
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
+    this.selectedLikeCount = '—'
+    this.selectedCommentCount = '—'
     this.searchHint = 'Видео отправлено в приложение телефона'
   },
   audioPlay() {

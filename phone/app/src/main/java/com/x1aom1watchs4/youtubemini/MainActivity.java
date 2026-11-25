@@ -73,6 +73,8 @@ public final class MainActivity extends Activity {
     private EditText audioUrl;
     private Uri selectedAudioUri;
     private String selectedAudioName = "";
+    private static final int AUDIO_CHUNK_BYTES = 5000;
+    private static final int MAX_AUDIO_BYTES = 15 * 1024 * 1024;
     private LinearLayout results;
 
     private final OnMessageReceivedListener messageListener =
@@ -269,6 +271,11 @@ public final class MainActivity extends Activity {
         chooseAudio.setOnClickListener(v -> chooseAudioFile());
         root.addView(chooseAudio);
 
+        Button sendFile = new Button(this);
+        sendFile.setText("SEND SELECTED FILE TO WATCH");
+        sendFile.setOnClickListener(v -> sendSelectedAudioFile());
+        root.addView(sendFile);
+
         Button sendAudio = new Button(this);
         sendAudio.setText("Передать аудио на часы");
         sendAudio.setOnClickListener(v -> sendAudioSource());
@@ -294,8 +301,104 @@ public final class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != 4107 || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         selectedAudioUri = data.getData();
-        selectedAudioName = "Selected audio file";
-        playbackStatus.setText("Selected: " + selectedAudioName + ". File transfer is being added.");
+        selectedAudioName = queryAudioName(selectedAudioUri);
+        playbackStatus.setText("Selected: " + selectedAudioName);
+    }
+
+
+    private String queryAudioName(Uri uri) {
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(uri, new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (column >= 0) return cursor.getString(column);
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return "audio-file";
+    }
+
+    private void sendSelectedAudioFile() {
+        final Uri uri = selectedAudioUri;
+        final Node node = activeNode;
+        if (uri == null) {
+            playbackStatus.setText("Select an audio file first.");
+            return;
+        }
+        if (node == null) {
+            playbackStatus.setText("Watch is not connected.");
+            return;
+        }
+        io.execute(() -> {
+            try (InputStream input = getContentResolver().openInputStream(uri);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                if (input == null) throw new IllegalStateException("Cannot read selected file.");
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (output.size() + count > MAX_AUDIO_BYTES) {
+                        throw new IllegalStateException("Audio file is larger than 15 MB.");
+                    }
+                    output.write(buffer, 0, count);
+                }
+                byte[] bytes = output.toByteArray();
+                if (bytes.length == 0) throw new IllegalStateException("Selected file is empty.");
+                int total = (bytes.length + AUDIO_CHUNK_BYTES - 1) / AUDIO_CHUNK_BYTES;
+                String transferId = "aud" + System.currentTimeMillis();
+                JSONObject start = new JSONObject();
+                put(start, "id", transferId);
+                put(start, "name", selectedAudioName);
+                put(start, "total", total);
+                sendAudioFrame(node.id, "audio.file.start", start, () ->
+                    sendAudioChunk(node.id, transferId, selectedAudioName, bytes, 0, total));
+            } catch (Exception error) {
+                runOnUiThread(() -> playbackStatus.setText("File read failed: " + safe(error)));
+            }
+        });
+    }
+
+    private void sendAudioChunk(String nodeId, String transferId, String name,
+                                byte[] bytes, int index, int total) {
+        int offset = index * AUDIO_CHUNK_BYTES;
+        int length = Math.min(AUDIO_CHUNK_BYTES, bytes.length - offset);
+        byte[] chunk = new byte[length];
+        System.arraycopy(bytes, offset, chunk, 0, length);
+        JSONObject payload = new JSONObject();
+        put(payload, "id", transferId);
+        put(payload, "name", name);
+        put(payload, "index", index);
+        put(payload, "total", total);
+        put(payload, "data", Base64.encodeToString(chunk, Base64.NO_WRAP));
+        sendAudioFrame(nodeId, "audio.file.chunk", payload, () -> {
+            runOnUiThread(() -> playbackStatus.setText("Sending audio: " + (index + 1) + "/" + total));
+            if (index + 1 < total) {
+                sendAudioChunk(nodeId, transferId, name, bytes, index + 1, total);
+            } else {
+                JSONObject done = new JSONObject();
+                put(done, "id", transferId);
+                put(done, "name", name);
+                sendAudioFrame(nodeId, "audio.file.finish", done, () ->
+                    runOnUiThread(() -> playbackStatus.setText("File transfer sent to watch.")));
+            }
+        });
+    }
+
+    private void sendAudioFrame(String nodeId, String type, JSONObject payload, Runnable success) {
+        try {
+            JSONObject frame = new JSONObject();
+            frame.put("v", 1);
+            frame.put("type", type);
+            frame.put("payload", payload);
+            messageApi.sendMessage(nodeId, frame.toString().getBytes(StandardCharsets.UTF_8))
+                .addOnSuccessListener(unused -> { if (success != null) success.run(); })
+                .addOnFailureListener(error -> runOnUiThread(() ->
+                    playbackStatus.setText("Audio transfer failed: " + safe(error))));
+        } catch (Exception error) {
+            runOnUiThread(() -> playbackStatus.setText("Audio transfer error: " + safe(error)));
+        }
     }
 
     private void addControl(LinearLayout row, String label, String action) {

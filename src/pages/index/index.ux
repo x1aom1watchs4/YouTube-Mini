@@ -450,6 +450,15 @@ export default {
     commentsText: 'Tap VIEW COMMENTS to load comments.',
     commentImages: [],
     incomingCommentImages: {},
+    pendingAudioId: '',
+    pendingAudioName: 'audio.mp3',
+    pendingAudioTotal: 0,
+    pendingAudioReceived: 0,
+    pendingAudioWritten: 0,
+    pendingAudioQueue: [],
+    pendingAudioWriting: false,
+    pendingAudioFinished: false,
+    pendingAudioUri: 'internal://files/current_audio.mp3',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
     searchHint: 'Enter a title, then search using your phone.',
@@ -493,6 +502,37 @@ export default {
           } catch (error) {
             this.audioStatus = 'Could not load audio source.'
           }
+        }
+      }
+
+      if (event.message && event.message.type === 'audio.file.start') {
+        const payload = event.message.payload || {}
+        this.pendingAudioId = payload.id || ''
+        this.pendingAudioName = payload.name || 'audio.mp3'
+        this.pendingAudioTotal = Number(payload.total) || 0
+        this.pendingAudioReceived = 0
+        this.pendingAudioWritten = 0
+        this.pendingAudioQueue = []
+        this.pendingAudioWriting = false
+        this.pendingAudioFinished = false
+        this.audioStatus = 'RECEIVING AUDIO FILE...'
+      }
+      if (event.message && event.message.type === 'audio.file.chunk') {
+        const payload = event.message.payload || {}
+        if (payload.id === this.pendingAudioId) {
+          const chunk = this.decodeBase64(payload.data || '')
+          if (chunk && chunk.length) {
+            this.pendingAudioQueue.push({ index: Number(payload.index) || 0, bytes: chunk })
+            this.pendingAudioReceived += 1
+            this.processNextAudioChunk()
+          }
+        }
+      }
+      if (event.message && event.message.type === 'audio.file.finish') {
+        const payload = event.message.payload || {}
+        if (payload.id === this.pendingAudioId) {
+          this.pendingAudioFinished = true
+          this.processNextAudioChunk()
         }
       }
       if (event.message && event.message.type === 'comments.image') {
@@ -623,6 +663,42 @@ export default {
     this.thumbnailFailed = true
     this.thumbnailMessage = 'Cover could not load. Check watch internet access.'
     this.searchHint = 'The video cover could not be downloaded.'
+  },
+
+  processNextAudioChunk() {
+    if (this.pendingAudioWriting) return
+    if (this.pendingAudioQueue.length > 0) {
+      const item = this.pendingAudioQueue.shift()
+      this.pendingAudioWriting = true
+      file.writeArrayBuffer({
+        uri: this.pendingAudioUri,
+        buffer: item.bytes,
+        append: item.index > 0,
+        success: () => {
+          this.pendingAudioWriting = false
+          this.pendingAudioWritten += 1
+          this.processNextAudioChunk()
+        },
+        fail: () => {
+          this.pendingAudioWriting = false
+          this.audioStatus = 'AUDIO FILE SAVE FAILED.'
+          this.pendingAudioQueue = []
+        }
+      })
+      return
+    }
+    if (this.pendingAudioFinished && this.pendingAudioWritten === this.pendingAudioTotal && this.pendingAudioTotal > 0) {
+      try {
+        audio.pause()
+        audio.src = this.pendingAudioUri
+        audio.meta = { title: this.pendingAudioName, artist: 'Local file', album: 'YouTube Mini' }
+        audio.autoplay = false
+        this.audioSource = this.pendingAudioUri
+        this.audioStatus = 'FILE READY. PRESS PLAY.'
+      } catch (error) {
+        this.audioStatus = 'COULD NOT OPEN LOCAL AUDIO FILE.'
+      }
+    }
   },
   playAudio() {
     if (!this.audioSource) {

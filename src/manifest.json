@@ -18,6 +18,9 @@
     },
     {
       "name": "system.audio"
+    },
+    {
+      "name": "system.file"
     }
   ],
   "config": {

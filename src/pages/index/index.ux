@@ -30,7 +30,7 @@
       </div>
       <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
       <text class="search-hint">{{searchHint}}</text>
-      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle, $item.thumbnailUrl)">
+      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle, $item.thumbnailUrl, $item.likeCount, $item.commentCount)">
         <image class="result-thumb" src="{{$item.thumbnailUrl}}" alt="blank" @error="thumbnailError" />
         <text class="result-title">{{$item.title}}</text>
         <text class="result-channel">{{$item.channelTitle}}</text>
@@ -53,19 +53,6 @@
       <text class="selected-stats">♥ {{selectedLikeCount}} · Комментарии: {{selectedCommentCount}}</text>
       <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
       <text class="comments-text">{{commentsText}}</text>
-      <text class="video-label">АУДИОФАЙЛ / РАЗРЕШЁННЫЙ ПОТОК</text>
-      <text class="hint">{{audioHint}}</text>
-      <div class="controls">
-        <text class="control primary" @click="audioPlay">▶</text>
-        <text class="control" @click="audioPause">Ⅱ</text>
-        <text class="control" @click="audioStop">■</text>
-      </div>
-      <div class="controls">
-        <text class="control" @click="sendPause">Ⅱ</text>
-        <text class="control primary" @click="sendPlay">▶</text>
-        <text class="control" @click="sendStop">■</text>
-      </div>
-      <text class="hint">{{playbackHint}}</text>
     </div>
 
     <div class="bottom">
@@ -319,7 +306,6 @@
 
 <script>
 import link from '../../common/scripts/interconnect'
-import audio from '@system.audio'
 
 export default {
   private: {
@@ -329,11 +315,9 @@ export default {
     videoSubtitle: 'Откройте YouTube Mini на телефоне',
     selectedVideoId: '',
     selectedThumbnailUrl: '',
-    playbackHint: 'Плеер часов пока проверяется',
     commentsText: 'Комментарии ещё не загружены',
     selectedLikeCount: '—',
     selectedCommentCount: '—',
-    audioHint: 'Источник аудио можно передать из приложения телефона',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
     videoResults: [],
@@ -360,7 +344,6 @@ export default {
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
-        this.playbackHint = 'Видео выбрано. Видеоплеер ещё не подключён.'
       }
       if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
@@ -368,17 +351,6 @@ export default {
         this.searchHint = this.videoResults.length
           ? 'Найдено: ' + this.videoResults.length
           : 'Ничего не найдено'
-      }
-      if (event.message && event.message.type === 'audio.source') {
-        const payload = event.message.payload || {}
-        if (payload.src) {
-          audio.src = payload.src
-          audio.autoplay = false
-          audio.meta = { title: payload.title || 'YouTube Mini audio', artist: 'YouTube Mini', album: '' }
-          this.audioHint = 'Аудиоисточник получен. Нажми ▶'
-        } else {
-          this.audioHint = 'Пустой аудиоадрес'
-        }
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
@@ -440,7 +412,7 @@ export default {
     this.searchHint = 'Ищем на телефоне…'
     this.videoResults = []
   },
-  selectVideo(videoId, title, channelTitle, thumbnailUrl) {
+  selectVideo(videoId, title, channelTitle, thumbnailUrl, likeCount, commentCount) {
     const payload = { videoId, title, channelTitle, thumbnailUrl }
     if (!link.send('video.select', payload)) {
       this.searchHint = 'Нет соединения'
@@ -450,24 +422,12 @@ export default {
     this.videoSubtitle = channelTitle || 'Выбрано на часах'
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
-    this.selectedLikeCount = '—'
-    this.selectedCommentCount = '—'
+    this.selectedLikeCount = likeCount || '—'
+    this.selectedCommentCount = commentCount || '—'
     this.searchHint = 'Видео отправлено в приложение телефона'
   },
-  audioPlay() {
-    try { audio.play(); this.audioHint = 'Воспроизведение аудио' }
-    catch (error) { this.audioHint = 'Не удалось запустить аудио: ' + String(error) }
-  },
-  audioPause() {
-    try { audio.pause(); this.audioHint = 'Пауза' }
-    catch (error) { this.audioHint = 'Ошибка паузы' }
-  },
-  audioStop() {
-    try { audio.stop(); this.audioHint = 'Остановлено' }
-    catch (error) { this.audioHint = 'Ошибка остановки' }
-  },
   thumbnailError() {
-    this.playbackHint = 'Не удалось загрузить обложку. Проверь интернет на часах.'
+    this.searchHint = 'Обложка не загрузилась. Проверь подключение часов к интернету.'
   },
   loadComments() {
     if (!this.selectedVideoId) {
@@ -482,35 +442,14 @@ export default {
   },
   openVideoOnPhone() {
     if (!this.selectedVideoId) {
-      this.playbackHint = 'Сначала выбери видео'
+      this.searchHint = 'Сначала выбери видео'
       return
     }
     if (!link.send('video.open', { videoId: this.selectedVideoId })) {
-      this.playbackHint = 'Нет соединения с телефоном'
+      this.searchHint = 'Нет соединения с телефоном'
     } else {
-      this.playbackHint = 'Отправлена команда открыть видео на телефоне'
+      this.searchHint = 'Видео открывается на телефоне'
     }
   },
-  sendPlay() {
-    if (!link.send('playback.command', { action: 'play' })) {
-      this.connectionLabel = 'Нет соединения'
-    } else {
-      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
-    }
-  },
-  sendPause() {
-    if (!link.send('playback.command', { action: 'pause' })) {
-      this.connectionLabel = 'Нет соединения'
-    } else {
-      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
-    }
-  },
-  sendStop() {
-    if (!link.send('playback.command', { action: 'stop' })) {
-      this.connectionLabel = 'Нет соединения'
-    } else {
-      this.playbackHint = 'Команда отправлена. Видеоплеер ещё не подключён.'
-    }
-  }
 }
 </script>

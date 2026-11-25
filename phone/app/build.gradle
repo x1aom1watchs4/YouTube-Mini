@@ -43,7 +43,7 @@ android {
     }
 }
 
-dependencies {\n    implementation 'com.google.mlkit:translate:17.0.3'\n    implementation 'com.google.mlkit:language-id:17.0.6'
+dependencies {
     // Place Xiaomi's xms-wearable-lib AAR from the official Vela
     // interconnect demo in app/libs before building.
     implementation fileTree(dir: "libs", include: ["*.aar", "*.jar"])

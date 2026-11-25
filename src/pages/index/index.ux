@@ -65,6 +65,9 @@
       <text class="comments-button" @click="loadComments">VIEW COMMENTS</text>
       <text class="comments-heading">PUBLIC COMMENTS</text>
       <text class="comments-text">{{commentsText}}</text>
+      <div class="comment-image-card" for="{{commentImages}}">
+        <image class="comment-image" src="{{$item.uri}}" />
+      </div>
     </div>
 
     <div class="audio-card">
@@ -304,7 +307,7 @@
   text-align: center;
   font-size: 13px;
 }
-.comments-text {
+.comment-image-card {\n  margin-top: 10px;\n  padding: 6px;\n  border-radius: 10px;\n  background-color: #252b36;\n}\n.comment-image {\n  width: 100%;\n  height: 100px;\n  object-fit: contain;\n}\n.comments-text {
   color: #c5ccda;
   font-size: 12px;
   margin-top: 8px;
@@ -419,6 +422,7 @@
 <script>
 import link from '../../common/scripts/interconnect'
 import audio from '@system.audio'
+import file from '@system.file'
 
 export default {
   private: {
@@ -433,6 +437,8 @@ export default {
     audioSource: '',
     audioStatus: 'Waiting for an audio link from your phone.',
     commentsText: 'Tap VIEW COMMENTS to load comments.',
+    commentImages: [],
+    incomingCommentImages: {},
     selectedLikeCount: '—',
     selectedCommentCount: '—',
     searchHint: 'Enter a title, then search using your phone.',
@@ -478,7 +484,7 @@ export default {
           }
         }
       }
-      if (event.message && event.message.type === 'comments.items') {
+      if (event.message && event.message.type === 'comments.image') {\n        const payload = event.message.payload || {}\n        const bytes = this.decodeBase64(payload.base64 || '')\n        if (bytes && payload.id) {\n          const uri = 'internal://files/comments/' + payload.id + '.png'\n          file.writeArrayBuffer({ uri, buffer: bytes, success: () => {\n            this.commentImages.push({ uri })\n            this.commentsText = 'Translated comments are shown as images.'\n          }, fail: () => { this.commentsText = 'Could not save comment image.' } })\n        }\n      }\n      if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
         const items = Array.isArray(payload.items) ? payload.items : []
         this.commentsText = payload.error || (items.length
@@ -622,7 +628,7 @@ export default {
     }
     try { audio.stop() } catch (error) { this.audioStatus = 'STOP FAILED.' }
   },
-  loadComments() {
+  decodeBase64(value) {\n    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'\n    const clean = value.replace(/[^A-Za-z0-9+/=]/g, '')\n    const out = []\n    let buffer = 0\n    let bits = 0\n    for (let i = 0; i < clean.length; i++) {\n      if (clean[i] === '=') break\n      const n = alphabet.indexOf(clean[i])\n      if (n < 0) continue\n      buffer = (buffer << 6) | n\n      bits += 6\n      if (bits >= 8) { bits -= 8; out.push((buffer >> bits) & 255) }\n    }\n    return new Uint8Array(out)\n  },\n  loadComments() {
     if (!this.selectedVideoId) {
       this.commentsText = 'Select a video first.'
       return

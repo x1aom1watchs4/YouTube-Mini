@@ -550,68 +550,56 @@ public final class MainActivity extends Activity {
     }
 
     private void translateAndSendCommentImages(JSONArray comments, String nodeId) {
-        LanguageIdentifier languageIdentifier = LanguageIdentification.getClient();
         for (int i = 0; i < comments.length(); i++) {
-            final int index = i;
             JSONObject row = comments.optJSONObject(i);
             if (row == null) continue;
-            String author = row.optString("author", "User");
-            String original = row.optString("text", "");
-            languageIdentifier.identifyLanguage(original).addOnSuccessListener(language -> {
-                if (language == null || "und".equals(language) || "ru".equals(language)) {
-                    sendCommentPng(nodeId, index, author, original);
-                    return;
-                }
-                String source = TranslateLanguage.fromLanguageTag(language);
-                if (source == null || TranslateLanguage.RUSSIAN.equals(source)) {
-                    sendCommentPng(nodeId, index, author, original);
-                    return;
-                }
-                Translator translator = com.google.mlkit.nl.translate.Translation.getClient(
-                    new TranslatorOptions.Builder().setSourceLanguage(source)
-                        .setTargetLanguage(TranslateLanguage.RUSSIAN).build());
-                translator.downloadModelIfNeeded().addOnSuccessListener(unused ->
-                    translator.translate(original).addOnSuccessListener(translated -> {
-                        sendCommentPng(nodeId, index, author, translated);
-                        translator.close();
-                    }).addOnFailureListener(error -> {
-                        sendCommentPng(nodeId, index, author, original);
-                        translator.close();
-                    })
-                ).addOnFailureListener(error -> {
-                    sendCommentPng(nodeId, index, author, original);
-                    translator.close();
-                });
-            }).addOnFailureListener(error -> sendCommentPng(nodeId, index, author, original));
+            sendCommentPng(nodeId, i, row.optString("author", "User"),
+                row.optString("text", ""));
         }
     }
 
     private void sendCommentPng(String nodeId, int index, String author, String text) {
         try {
-            String safeText = text == null ? "" : text.replaceAll("\\s+", " ").trim();
-            if (safeText.length() > 150) safeText = safeText.substring(0, 147) + "...";
-            Bitmap bitmap = Bitmap.createBitmap(280, 116, Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            canvas.drawColor(android.graphics.Color.rgb(37, 43, 54));
+            String safeText = text == null ? "" : text.replaceAll("\\r", "").trim();
+            if (safeText.isEmpty()) safeText = "(empty comment)";
+            Bitmap measureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+            Canvas measureCanvas = new Canvas(measureBitmap);
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             paint.setColor(android.graphics.Color.WHITE);
             paint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
-            paint.setTextSize(15f);
-            canvas.drawText(author.length() > 26 ? author.substring(0, 26) : author, 10, 21, paint);
-            paint.setTextSize(13f);
-            String[] words = safeText.split(" ");
-            StringBuilder line = new StringBuilder();
-            int y = 44;
-            for (String word : words) {
-                String candidate = line.length() == 0 ? word : line + " " + word;
-                if (paint.measureText(candidate) > 258 && line.length() > 0) {
-                    canvas.drawText(line.toString(), 10, y, paint);
-                    y += 18;
-                    line = new StringBuilder(word);
-                    if (y > 98) break;
-                } else line = new StringBuilder(candidate);
+            paint.setTextSize(14f);
+            int maxWidth = 420;
+            java.util.ArrayList<String> lines = new java.util.ArrayList<>();
+            for (String paragraph : safeText.split("\\n")) {
+                StringBuilder line = new StringBuilder();
+                for (String word : paragraph.split(" ")) {
+                    String candidate = line.length() == 0 ? word : line + " " + word;
+                    if (paint.measureText(candidate) > maxWidth - 24 && line.length() > 0) {
+                        lines.add(line.toString());
+                        line = new StringBuilder(word);
+                    } else line = new StringBuilder(candidate);
+                }
+                lines.add(line.toString());
             }
-            if (y <= 98 && line.length() > 0) canvas.drawText(line.toString(), 10, y, paint);
+            measureBitmap.recycle();
+            int height = Math.max(76, 48 + lines.size() * 19);
+            Bitmap bitmap = Bitmap.createBitmap(maxWidth, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(android.graphics.Color.rgb(37, 43, 54));
+            paint.setTextSize(14f);
+            String safeAuthor = author == null ? "User" : author;
+            if (paint.measureText(safeAuthor) > maxWidth - 24) {
+                while (safeAuthor.length() > 3 && paint.measureText(safeAuthor + "...") > maxWidth - 24)
+                    safeAuthor = safeAuthor.substring(0, safeAuthor.length() - 1);
+                safeAuthor += "...";
+            }
+            canvas.drawText(safeAuthor, 12, 24, paint);
+            paint.setTextSize(13f);
+            int y = 48;
+            for (String line : lines) {
+                canvas.drawText(line, 12, y, paint);
+                y += 19;
+            }
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
             bitmap.recycle();

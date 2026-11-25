@@ -62,6 +62,7 @@ public final class MainActivity extends Activity {
     private EditText videoId;
     private EditText videoTitle;
     private EditText seekSeconds;
+    private EditText audioUrl;
     private LinearLayout results;
 
     private final OnMessageReceivedListener messageListener =
@@ -241,6 +242,22 @@ public final class MainActivity extends Activity {
         seek.setText("Перемотать");
         seek.setOnClickListener(v -> sendSeek());
         root.addView(seek);
+
+        TextView audioHeading = new TextView(this);
+        audioHeading.setText("Аудио на часах (прямой разрешённый URL)");
+        audioHeading.setTextSize(18);
+        root.addView(audioHeading);
+
+        audioUrl = new EditText(this);
+        audioUrl.setSingleLine(true);
+        audioUrl.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        audioUrl.setHint("https://.../audio.mp3");
+        root.addView(audioUrl);
+
+        Button sendAudio = new Button(this);
+        sendAudio.setText("Передать аудио на часы");
+        sendAudio.setOnClickListener(v -> sendAudioSource());
+        root.addView(sendAudio);
 
         playbackStatus = new TextView(this);
         playbackStatus.setText("Плеер часов ещё не подтверждён на устройстве.");
@@ -603,6 +620,20 @@ public final class MainActivity extends Activity {
     private static String thumbnailUrlFor(String videoId) {
         if (videoId == null || videoId.isEmpty()) return "";
         return "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+    }
+
+    private void sendAudioSource() {
+        String source = audioUrl.getText().toString().trim();
+        Uri parsed = Uri.parse(source);
+        String scheme = parsed.getScheme();
+        if (source.isEmpty() || !("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))) {
+            status.setText("Укажи прямой HTTP(S) URL аудиофайла или разрешённого аудиопотока.");
+            return;
+        }
+        JSONObject payload = new JSONObject();
+        put(payload, "src", source);
+        put(payload, "title", "Аудио");
+        send("audio.source", payload);
     }
 
     private void sendSeek() {

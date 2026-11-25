@@ -7,6 +7,8 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.util.Base64;
 import android.content.Intent;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -69,6 +71,8 @@ public final class MainActivity extends Activity {
     private EditText videoTitle;
     private EditText seekSeconds;
     private EditText audioUrl;
+    private Uri selectedAudioUri;
+    private String selectedAudioName = "";
     private LinearLayout results;
 
     private final OnMessageReceivedListener messageListener =
@@ -260,6 +264,11 @@ public final class MainActivity extends Activity {
         audioUrl.setHint("https://.../audio.mp3");
         root.addView(audioUrl);
 
+        Button chooseAudio = new Button(this);
+        chooseAudio.setText("SELECT AUDIO FILE");
+        chooseAudio.setOnClickListener(v -> chooseAudioFile());
+        root.addView(chooseAudio);
+
         Button sendAudio = new Button(this);
         sendAudio.setText("Передать аудио на часы");
         sendAudio.setOnClickListener(v -> sendAudioSource());
@@ -270,6 +279,23 @@ public final class MainActivity extends Activity {
         root.addView(playbackStatus);
 
         setContentView(scroll);
+    }
+
+
+    private void chooseAudioFile() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("audio/*");
+        startActivityForResult(intent, 4107);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != 4107 || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        selectedAudioUri = data.getData();
+        selectedAudioName = "Selected audio file";
+        playbackStatus.setText("Selected: " + selectedAudioName + ". File transfer is being added.");
     }
 
     private void addControl(LinearLayout row, String label, String action) {

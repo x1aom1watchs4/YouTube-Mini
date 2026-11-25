@@ -31,7 +31,7 @@
       <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
       <text class="search-hint">{{searchHint}}</text>
       <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle, $item.thumbnailUrl)">
-        <image class="result-thumb" src="{{$item.thumbnailUrl}}" />
+        <image class="result-thumb" src="{{$item.thumbnailUrl}}" alt="blank" @error="thumbnailError" />
         <text class="result-title">{{$item.title}}</text>
         <text class="result-channel">{{$item.channelTitle}}</text>
       </div>
@@ -45,10 +45,12 @@
 
     <div class="video-card">
       <text class="video-label">СЕЙЧАС ВЫБРАНО</text>
-      <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" />
+      <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" alt="blank" @error="thumbnailError" />
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
       <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
+      <text class="comments-button" @click="loadComments">КОММЕНТАРИИ</text>
+      <text class="comments-text">{{commentsText}}</text>
       <div class="controls">
         <text class="control" @click="sendPause">Ⅱ</text>
         <text class="control primary" @click="sendPlay">▶</text>
@@ -180,6 +182,21 @@
   border-radius: 12px;
   object-fit: cover;
 }
+.comments-button {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: #303847;
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+}
+.comments-text {
+  color: #c5ccda;
+  font-size: 12px;
+  margin-top: 8px;
+  line-height: 18px;
+}
 .open-video {
   margin-top: 14px;
   padding: 10px;
@@ -298,6 +315,7 @@ export default {
     selectedVideoId: '',
     selectedThumbnailUrl: '',
     playbackHint: 'Плеер часов пока проверяется',
+    commentsText: 'Комментарии ещё не загружены',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
     videoResults: [],
@@ -332,6 +350,13 @@ export default {
         this.searchHint = this.videoResults.length
           ? 'Найдено: ' + this.videoResults.length
           : 'Ничего не найдено'
+      }
+      if (event.message && event.message.type === 'comments.items') {
+        const payload = event.message.payload || {}
+        const items = Array.isArray(payload.items) ? payload.items : []
+        this.commentsText = items.length
+          ? items.map((item, index) => (index + 1) + '. ' + item.author + ': ' + item.text).join('\n\n')
+          : 'Публичных комментариев нет или они отключены'
       }
       if (event.message && event.message.type === 'video.search.error') {
         const payload = event.message.payload || {}
@@ -397,6 +422,20 @@ export default {
     this.selectedVideoId = videoId || ''
     this.selectedThumbnailUrl = thumbnailUrl || ''
     this.searchHint = 'Видео отправлено в приложение телефона'
+  },
+  thumbnailError() {
+    this.playbackHint = 'Не удалось загрузить обложку. Проверь интернет на часах.'
+  },
+  loadComments() {
+    if (!this.selectedVideoId) {
+      this.commentsText = 'Сначала выбери видео'
+      return
+    }
+    if (!link.send('comments.load', { videoId: this.selectedVideoId })) {
+      this.commentsText = 'Нет соединения с телефоном'
+    } else {
+      this.commentsText = 'Загружаем публичные комментарии…'
+    }
   },
   openVideoOnPhone() {
     if (!this.selectedVideoId) {

@@ -461,13 +461,12 @@ public final class MainActivity extends Activity {
                     JSONObject id = item.optJSONObject("id");
                     JSONObject snippet = item.optJSONObject("snippet");
                     if (id == null || snippet == null) continue;
-                    JSONObject thumbs = snippet.optJSONObject("thumbnails");
-                    JSONObject thumb = thumbs == null ? null : thumbs.optJSONObject("default");
+                    String videoId = id.optString("videoId", "");
                     JSONObject video = new JSONObject();
-                    video.put("videoId", id.optString("videoId", ""));
+                    video.put("videoId", videoId);
                     video.put("title", snippet.optString("title", "Видео"));
                     video.put("channelTitle", snippet.optString("channelTitle", ""));
-                    video.put("thumbnailUrl", thumb == null ? "" : thumb.optString("url", ""));
+                    video.put("thumbnailUrl", thumbnailUrlFor(videoId));
                     compact.put(video);
                 }
                 sendToNode(nodeId, "video.results", put(new JSONObject(), "items", compact));
@@ -518,9 +517,7 @@ public final class MainActivity extends Activity {
             String selectedId = id.optString("videoId", "");
             String title = snippet.optString("title", "Видео");
             String channel = snippet.optString("channelTitle", "");
-            JSONObject thumbnails = snippet.optJSONObject("thumbnails");
-            JSONObject thumb = thumbnails == null ? null : thumbnails.optJSONObject("default");
-            String thumbnailUrl = thumb == null ? "" : thumb.optString("url", "");
+            String thumbnailUrl = thumbnailUrlFor(selectedId);
             if (selectedId.isEmpty()) continue;
             Button result = new Button(this);
             result.setText(title + (channel.isEmpty() ? "" : "\n" + channel));
@@ -546,11 +543,17 @@ public final class MainActivity extends Activity {
 
     private void sendVideo(String id, String title, String channel, String thumbnail) {
         JSONObject payload = new JSONObject();
+        if (thumbnail == null || thumbnail.isEmpty()) thumbnail = thumbnailUrlFor(id);
         put(payload, "videoId", id);
         put(payload, "title", title);
         put(payload, "channelTitle", channel);
         put(payload, "thumbnailUrl", thumbnail);
         send("video.select", payload);
+    }
+
+    private static String thumbnailUrlFor(String videoId) {
+        if (videoId == null || videoId.isEmpty()) return "";
+        return "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
     }
 
     private void sendSeek() {

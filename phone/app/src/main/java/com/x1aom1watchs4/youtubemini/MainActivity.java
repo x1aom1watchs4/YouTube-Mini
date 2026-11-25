@@ -104,7 +104,11 @@ public final class MainActivity extends Activity {
                                 sendAudioChunk(pendingAudioNodeId, pendingAudioTransferId, selectedAudioName,
                                     pendingAudioBytes, pendingAudioNextChunk, pendingAudioTotal);
                             } else {
-                                runOnUiThread(() -> playbackStatus.setText("All audio chunks saved. Waiting for watch..."));
+                                JSONObject finish = new JSONObject();
+                                put(finish, "id", pendingAudioTransferId);
+                                put(finish, "name", selectedAudioName);
+                                sendAudioFrame(pendingAudioNodeId, "audio.file.finish", finish, () ->
+                                    runOnUiThread(() -> playbackStatus.setText("All chunks delivered. Finalizing on watch...")));
                             }
                         }
                     } else if ("audio.file.complete".equals(type)) {

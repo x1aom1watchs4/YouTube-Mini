@@ -30,7 +30,8 @@
       </div>
       <input class="search-button" type="button" value="ИСКАТЬ" @click="searchOnPhone" />
       <text class="search-hint">{{searchHint}}</text>
-      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle)">
+      <div class="result" for="{{videoResults}}" tid="videoId" @click="selectVideo($item.videoId, $item.title, $item.channelTitle, $item.thumbnailUrl)">
+        <image class="result-thumb" src="{{$item.thumbnailUrl}}" />
         <text class="result-title">{{$item.title}}</text>
         <text class="result-channel">{{$item.channelTitle}}</text>
       </div>
@@ -44,8 +45,10 @@
 
     <div class="video-card">
       <text class="video-label">СЕЙЧАС ВЫБРАНО</text>
+      <image if="{{selectedThumbnailUrl}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" />
       <text class="video-title">{{videoTitle}}</text>
       <text class="video-sub">{{videoSubtitle}}</text>
+      <text class="open-video" @click="openVideoOnPhone">ОТКРЫТЬ НА ТЕЛЕФОНЕ</text>
       <div class="controls">
         <text class="control" @click="sendPause">Ⅱ</text>
         <text class="control primary" @click="sendPlay">▶</text>
@@ -164,6 +167,28 @@
   background-color: #252b36;
   flex-direction: column;
 }
+.result-thumb {
+  width: 100%;
+  height: 110px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.selected-thumb {
+  width: 100%;
+  height: 150px;
+  margin-top: 12px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.open-video {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: #ff3347;
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+}
 .result-title {
   color: #ffffff;
   font-size: 13px;
@@ -270,6 +295,8 @@ export default {
     connectionLabel: 'Нет соединения',
     videoTitle: 'Пока ничего не выбрано',
     videoSubtitle: 'Откройте YouTube Mini на телефоне',
+    selectedVideoId: '',
+    selectedThumbnailUrl: '',
     playbackHint: 'Плеер часов пока проверяется',
     searchQuery: '',
     searchHint: 'Поиск выполняется на телефоне',
@@ -295,6 +322,8 @@ export default {
         const payload = event.message.payload || {}
         this.videoTitle = payload.title || 'Видео выбрано'
         this.videoSubtitle = payload.channelTitle || 'Отправлено с телефона'
+        this.selectedVideoId = payload.videoId || ''
+        this.selectedThumbnailUrl = payload.thumbnailUrl || ''
         this.playbackHint = 'Видео выбрано. Видеоплеер ещё не подключён.'
       }
       if (event.message && event.message.type === 'video.results') {
@@ -357,15 +386,28 @@ export default {
     this.searchHint = 'Ищем на телефоне…'
     this.videoResults = []
   },
-  selectVideo(videoId, title, channelTitle) {
-    const payload = { videoId, title, channelTitle }
+  selectVideo(videoId, title, channelTitle, thumbnailUrl) {
+    const payload = { videoId, title, channelTitle, thumbnailUrl }
     if (!link.send('video.select', payload)) {
       this.searchHint = 'Нет соединения'
       return
     }
     this.videoTitle = title || 'Видео выбрано'
     this.videoSubtitle = channelTitle || 'Выбрано на часах'
+    this.selectedVideoId = videoId || ''
+    this.selectedThumbnailUrl = thumbnailUrl || ''
     this.searchHint = 'Видео отправлено в приложение телефона'
+  },
+  openVideoOnPhone() {
+    if (!this.selectedVideoId) {
+      this.playbackHint = 'Сначала выбери видео'
+      return
+    }
+    if (!link.send('video.open', { videoId: this.selectedVideoId })) {
+      this.playbackHint = 'Нет соединения с телефоном'
+    } else {
+      this.playbackHint = 'Отправлена команда открыть видео на телефоне'
+    }
   },
   sendPlay() {
     if (!link.send('playback.command', { action: 'play' })) {

@@ -78,3 +78,49 @@ const output = path.join(__dirname, '..', 'src', 'common', 'icon.png');
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, png);
 console.log('Generated 192x192 RGBA Vela app icon:', output);
+
+
+// Generate tiny local frames for the Vela image-animator compatibility test.
+function writePng(filePath, framePixels) {
+  const frameScanlines = Buffer.alloc((SIZE * 4 + 1) * SIZE);
+  for (let y = 0; y < SIZE; y++) {
+    const offset = y * (SIZE * 4 + 1);
+    frameScanlines[offset] = 0;
+    framePixels.copy(frameScanlines, offset + 1, y * SIZE * 4, (y + 1) * SIZE * 4);
+  }
+  const frameHeader = Buffer.alloc(13);
+  frameHeader.writeUInt32BE(SIZE, 0);
+  frameHeader.writeUInt32BE(SIZE, 4);
+  frameHeader[8] = 8;
+  frameHeader[9] = 6;
+  frameHeader[10] = 0;
+  frameHeader[11] = 0;
+  frameHeader[12] = 0;
+  const framePng = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', frameHeader),
+    chunk('IDAT', zlib.deflateSync(frameScanlines)),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+  fs.writeFileSync(filePath, framePng);
+}
+
+const animationDir = path.join(__dirname, '..', 'src', 'common', 'anim');
+fs.mkdirSync(animationDir, { recursive: true });
+[0, 9, 18, 27, 18, 9].forEach((shift, index) => {
+  const framePixels = Buffer.alloc(SIZE * SIZE * 4);
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      let color = [12, 17, 28, 255];
+      if (roundedRect(x, y, 20, 20, 172, 172, 30)) color = [238, 35, 48, 255];
+      if (inTriangle(x + 0.5, y + 0.5, 65 + shift, 70, 65 + shift, 122, 111 + shift, 96)) color = [255, 255, 255, 255];
+      const i = (y * SIZE + x) * 4;
+      framePixels[i] = color[0];
+      framePixels[i + 1] = color[1];
+      framePixels[i + 2] = color[2];
+      framePixels[i + 3] = color[3];
+    }
+  }
+  writePng(path.join(animationDir, 'frame-' + String(index + 1).padStart(2, '0') + '.png'), framePixels);
+});
+console.log('Generated 6 Vela animation test frames:', animationDir);

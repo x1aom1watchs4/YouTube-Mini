@@ -124,7 +124,8 @@ export default {
     if (!event || this.commentsVisible) return
     if (event.direction === 'up' || event.direction === 'left') this.nextVideo()
     if (event.direction === 'down' || event.direction === 'right') this.previousVideo()
-  },\n  showComments() { if (this.selectedVideoId) this.commentsVisible = true },
+  },
+  showComments() { if (this.selectedVideoId) this.commentsVisible = true },
   hideComments() { this.commentsVisible = false },
   openVideoOnPhone() { if (this.selectedVideoId) link.send('video.open', { videoId: this.selectedVideoId }) }
 }

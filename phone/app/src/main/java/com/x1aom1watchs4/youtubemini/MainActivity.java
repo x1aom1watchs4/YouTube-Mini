@@ -217,107 +217,74 @@ public final class MainActivity extends Activity {
         root.addView(status);
 
         Button refresh = new Button(this);
-        refresh.setText("Проверить связь");
+        refresh.setText("CONNECT WATCH");
         refresh.setOnClickListener(v -> refreshWearable());
         root.addView(refresh);
 
         TextView searchHeading = new TextView(this);
-        searchHeading.setText("Поиск YouTube");
-        searchHeading.setTextSize(20);
+        searchHeading.setText("FIND SHORT-FORM VIDEOS");
+        searchHeading.setTextColor(android.graphics.Color.rgb(255, 55, 85));
+        searchHeading.setTextSize(14);
+        searchHeading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         root.addView(searchHeading);
 
         apiKey = new EditText(this);
         apiKey.setSingleLine(true);
+        apiKey.setTextColor(android.graphics.Color.WHITE);
+        apiKey.setHintTextColor(android.graphics.Color.GRAY);
         apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        apiKey.setHint("YouTube Data API key (не сохраняется)");
+        apiKey.setHint("YouTube Data API key");
         root.addView(apiKey);
 
         searchQuery = new EditText(this);
         searchQuery.setSingleLine(true);
-        searchQuery.setHint("Название видео или запрос");
+        searchQuery.setTextColor(android.graphics.Color.WHITE);
+        searchQuery.setHintTextColor(android.graphics.Color.GRAY);
+        searchQuery.setHint("Search videos");
         root.addView(searchQuery);
 
         Button search = new Button(this);
-        search.setText("Найти видео");
+        search.setText("SEARCH SHORT-FORM");
         search.setOnClickListener(v -> searchVideos());
         root.addView(search);
+
+        TextView note = new TextView(this);
+        note.setText("Short-duration search. Exact Shorts-only filtering is not available in YouTube Data API.");
+        note.setTextColor(android.graphics.Color.GRAY);
+        note.setTextSize(11);
+        root.addView(note);
 
         results = new LinearLayout(this);
         results.setOrientation(LinearLayout.VERTICAL);
         root.addView(results);
 
-        TextView manualHeading = new TextView(this);
-        manualHeading.setText("Отправить видео по ссылке или ID");
-        manualHeading.setTextSize(18);
-        root.addView(manualHeading);
+        TextView selectedHeading = new TextView(this);
+        selectedHeading.setText("SELECTED VIDEO");
+        selectedHeading.setTextColor(android.graphics.Color.rgb(255, 55, 85));
+        selectedHeading.setTextSize(13);
+        root.addView(selectedHeading);
 
         videoId = new EditText(this);
         videoId.setSingleLine(true);
-        videoId.setHint("YouTube video ID");
+        videoId.setTextColor(android.graphics.Color.WHITE);
+        videoId.setHint("Video ID");
         root.addView(videoId);
 
         videoTitle = new EditText(this);
         videoTitle.setSingleLine(true);
-        videoTitle.setHint("Название видео");
+        videoTitle.setTextColor(android.graphics.Color.WHITE);
+        videoTitle.setHint("Video title");
         root.addView(videoTitle);
 
         Button send = new Button(this);
-        send.setText("Отправить на часы");
+        send.setText("SEND TO WATCH");
         send.setOnClickListener(v -> sendSelectedVideo());
         root.addView(send);
 
-        TextView controlsHeading = new TextView(this);
-        controlsHeading.setText("Команды плеера (демо)");
-        controlsHeading.setTextSize(20);
-        root.addView(controlsHeading);
-
-        LinearLayout controls = new LinearLayout(this);
-        controls.setOrientation(LinearLayout.HORIZONTAL);
-        addControl(controls, "▶", "play");
-        addControl(controls, "Ⅱ", "pause");
-        addControl(controls, "■", "stop");
-        root.addView(controls);
-
-        seekSeconds = new EditText(this);
-        seekSeconds.setSingleLine(true);
-        seekSeconds.setHint("Перейти к секунде");
-        root.addView(seekSeconds);
-
-        Button seek = new Button(this);
-        seek.setText("Перемотать");
-        seek.setOnClickListener(v -> sendSeek());
-        root.addView(seek);
-
-        TextView audioHeading = new TextView(this);
-        audioHeading.setText("Аудио на часах (прямой разрешённый URL)");
-        audioHeading.setTextSize(18);
-        root.addView(audioHeading);
-
-        audioUrl = new EditText(this);
-        audioUrl.setSingleLine(true);
-        audioUrl.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        audioUrl.setHint("https://.../audio.mp3");
-        root.addView(audioUrl);
-
-        Button chooseAudio = new Button(this);
-        chooseAudio.setText("SELECT AUDIO FILE");
-        chooseAudio.setOnClickListener(v -> chooseAudioFile());
-        root.addView(chooseAudio);
-
-        Button sendFile = new Button(this);
-        sendFile.setText("SEND SELECTED FILE TO WATCH");
-        sendFile.setOnClickListener(v -> sendSelectedAudioFile());
-        root.addView(sendFile);
-
-        Button sendAudio = new Button(this);
-        sendAudio.setText("Передать аудио на часы");
-        sendAudio.setOnClickListener(v -> sendAudioSource());
-        root.addView(sendAudio);
-
         playbackStatus = new TextView(this);
-        playbackStatus.setText("Плеер часов ещё не подтверждён на устройстве.");
+        playbackStatus.setTextColor(android.graphics.Color.LTGRAY);
+        playbackStatus.setText("Choose a result, then tap it on the watch to load comments.");
         root.addView(playbackStatus);
-
         setContentView(scroll);
     }
 
@@ -646,6 +613,9 @@ public final class MainActivity extends Activity {
             put(video, "title", snippet.optString("title", "Video"));
             put(video, "channelTitle", snippet.optString("channelTitle", ""));
             put(video, "thumbnailUrl", thumbnailUrlFor(snippet, videoId));
+            JSONObject stats = item.optJSONObject("statistics");
+            put(video, "likeCount", stats == null ? "—" : stats.optString("likeCount", "—"));
+            put(video, "commentCount", stats == null ? "—" : stats.optString("commentCount", "—"));
             compact.put(video);
         }
         sendToNode(node.id, "video.results", put(new JSONObject(), "items", compact));
@@ -805,7 +775,7 @@ public final class MainActivity extends Activity {
         HttpURLConnection connection = null;
         try {
             String address = "https://www.googleapis.com/youtube/v3/search"
-                + "?part=snippet&type=video&maxResults=10"
+                + "?part=snippet&type=video&videoDuration=short&maxResults=10"
                 + "&q=" + URLEncoder.encode(query, "UTF-8")
                 + "&key=" + URLEncoder.encode(key, "UTF-8");
             connection = (HttpURLConnection) new URL(address).openConnection();
@@ -900,6 +870,8 @@ public final class MainActivity extends Activity {
                 videoId.setText(selectedId);
                 videoTitle.setText(title);
                 sendVideo(selectedId, title, channel, thumbnailUrl, likes, comments);
+                Node node = activeNode;
+                if (node != null) sendToNode(node.id, "comments.load", put(new JSONObject(), "videoId", selectedId));
             });
             results.addView(result);
         }

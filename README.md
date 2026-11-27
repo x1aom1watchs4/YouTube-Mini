@@ -25,7 +25,7 @@ The Android `applicationId` and Vela manifest `package` must match exactly. Both
 
 ## Video playback status
 
-**Local video playback on the watch is implemented through phone-decoded frame streaming.** Choose a local video file in the Android companion and tap `PLAY VIDEO ON WATCH`; Android decodes it and the watch renders the received JPEG frames. This is moving video displayed on the watch, but not native MP4 decoding by the watch. YouTube Shorts still open through the official YouTube app on the phone; the app does not extract or relay YouTube streams.
+**Local video playback on the watch is implemented through phone-decoded frame streaming.** Choose a local video file in the Android companion and tap `PLAY VIDEO ON WATCH`; Android decodes it and the watch renders the received JPEG frames. Each frame now has a unique cache URI (avoiding the two-file image-cache loop), writes are serialized, and old frame files are deleted as playback advances. This is moving video displayed on the watch, but not native MP4 decoding by the watch. YouTube Shorts still open through the official YouTube app on the phone; the app does not extract or relay YouTube streams.
 
 The YouTube Data API provides search metadata and statistics, not the underlying video stream. This project does not extract, proxy, or relay YouTube media streams.
 

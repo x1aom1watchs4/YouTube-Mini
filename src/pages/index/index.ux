@@ -75,7 +75,8 @@ export default {
     currentLikeCount: '—', currentCommentCount: '—', videoPosition: '0 / 0',
     selectedVideoId: '', commentList: [], commentsLabel: 'Select a Short to load comments',
     commentsVisible: false, currentFrameSource: '', streamActive: false,
-    playing: false, frameBufferIndex: 0
+    playing: false, frameBufferIndex: 0, currentStreamId: '',
+    frameWriteQueue: [], frameWriteBusy: false, frameUris: []
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -84,16 +85,25 @@ export default {
         this.streamActive = true
         this.playing = true
         this.frameBufferIndex = 0
+        this.frameWriteQueue = []
+        this.currentStreamId = payload.streamId || ('s' + Date.now())
+        this.frameUris.forEach((uri) => {
+          file.delete({ uri, fail: () => {} })
+        })
+        this.frameUris = []
         this.currentFrameSource = ''
         if (payload.title) this.currentTitle = payload.title
       }
       if (event.message && event.message.type === 'video.stream.frame') {
         const payload = event.message.payload || {}
-        if (payload.data) this.renderVideoFrame(payload.data)
+        if (payload.data && payload.streamId === this.currentStreamId) {
+          this.enqueueVideoFrame(payload.data, payload.sequence)
+        }
       }
       if (event.message && event.message.type === 'video.stream.end') {
         this.streamActive = false
         this.playing = false
+        this.frameWriteQueue = []
       }
       if (event.message && event.message.type === 'video.stream.error') {
         const payload = event.message.payload || {}
@@ -122,9 +132,15 @@ export default {
     link.checkConnection()
   },
   onDestroy() { if (this.unsubscribeLink) this.unsubscribeLink() },
-  renderVideoFrame(encoded) {
+  enqueueVideoFrame(encoded, sequence) {
+    this.frameWriteQueue.push({ encoded, sequence })
+    if (!this.frameWriteBusy) this.writeNextVideoFrame()
+  },
+  writeNextVideoFrame() {
+    if (this.frameWriteBusy || !this.frameWriteQueue.length || !this.streamActive) return
+    const frame = this.frameWriteQueue.shift()
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    const clean = String(encoded).replace(/[^A-Za-z0-9+/=]/g, '')
+    const clean = String(frame.encoded).replace(/[^A-Za-z0-9+/=]/g, '')
     const padding = clean.endsWith('==') ? 2 : (clean.endsWith('=') ? 1 : 0)
     const bytes = new Uint8Array(Math.max(0, Math.floor(clean.length * 3 / 4) - padding))
     let out = 0
@@ -138,19 +154,32 @@ export default {
       if (out < bytes.length) bytes[out++] = (value >> 8) & 255
       if (out < bytes.length) bytes[out++] = value & 255
     }
-    const uri = this.frameBufferIndex % 2 === 0
-      ? 'internal://cache/ytm-video-frame-a.jpg'
-      : 'internal://cache/ytm-video-frame-b.jpg'
+    const streamId = this.currentStreamId
+    const uri = 'internal://cache/ytm-v-' + streamId + '-' + frame.sequence + '.jpg'
+    this.frameWriteBusy = true
     file.writeArrayBuffer({
       uri,
       buffer: bytes,
       success: () => {
-        this.currentFrameSource = uri
-        this.frameBufferIndex += 1
+        if (streamId === this.currentStreamId && this.streamActive) {
+          this.currentFrameSource = uri
+          this.frameUris.push(uri)
+          if (this.frameUris.length > 2) {
+            const obsolete = this.frameUris.shift()
+            file.delete({ uri: obsolete, fail: () => {} })
+          }
+          this.frameBufferIndex += 1
+        } else {
+          file.delete({ uri, fail: () => {} })
+        }
+        this.frameWriteBusy = false
+        this.writeNextVideoFrame()
       },
       fail: (error, code) => {
+        this.frameWriteBusy = false
         this.streamActive = false
         this.playing = false
+        this.frameWriteQueue = []
         console.error('Video frame write failed', error, code)
       }
     })
@@ -164,6 +193,7 @@ export default {
     this.currentFrameSource = ''
     this.streamActive = false
     this.playing = false
+    this.frameWriteQueue = []
     const item = this.videoList[this.videoIndex]
     if (!item) {
       this.currentThumbnail = ''; this.currentTitle = 'Search Shorts on your phone'

@@ -86,6 +86,7 @@ public final class MainActivity extends Activity {
     private volatile int localVideoGeneration;
     private int localVideoFrameNumber;
     private String localVideoNodeId = "";
+    private String localVideoStreamId = "";
     private static final int VIDEO_FRAME_INTERVAL_MS = 250;
     private static final int VIDEO_FRAME_MAX_BYTES = 6500;
     private static final int AUDIO_CHUNK_BYTES = 5000;
@@ -476,6 +477,7 @@ public final class MainActivity extends Activity {
             return;
         }
         localVideoStreamActive = false;
+        localVideoStreamPaused = false;
         localVideoGeneration++;
         io.execute(() -> {
             releaseLocalVideoRetriever();
@@ -495,6 +497,8 @@ public final class MainActivity extends Activity {
                 final int generation = ++localVideoGeneration;
                 JSONObject payload = new JSONObject();
                 put(payload, "title", selectedVideoName.isEmpty() ? "Local video" : selectedVideoName);
+                put(payload, "streamId", "s" + System.currentTimeMillis());
+                localVideoStreamId = payload.optString("streamId");
                 put(payload, "durationMs", duration);
                 sendVideoTransportMessage(node.id, "video.stream.start", payload,
                     () -> io.execute(() -> pumpLocalVideoFrame(generation)));
@@ -551,6 +555,7 @@ public final class MainActivity extends Activity {
             byte[] jpeg = encodeWatchFrame(source);
             JSONObject payload = new JSONObject();
             put(payload, "sequence", localVideoFrameNumber++);
+            put(payload, "streamId", localVideoStreamId);
             put(payload, "positionMs", localVideoPositionMs);
             put(payload, "data", Base64.encodeToString(jpeg, Base64.NO_WRAP));
             final long nextPosition = localVideoPositionMs + VIDEO_FRAME_INTERVAL_MS;

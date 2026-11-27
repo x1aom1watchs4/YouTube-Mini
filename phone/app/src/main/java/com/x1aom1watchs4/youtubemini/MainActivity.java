@@ -619,11 +619,36 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 JSONArray items = fetchVideoResults(query, key);
-                runOnUiThread(() -> showResults(items));
+                runOnUiThread(() -> {
+                    showResults(items);
+                    sendSearchResultsToWatch(items);
+                });
             } catch (Exception error) {
                 runOnUiThread(() -> status.setText("Поиск не удался: " + safe(error)));
             }
         });
+    }
+
+    private void sendSearchResultsToWatch(JSONArray found) {
+        Node node = activeNode;
+        if (node == null || found == null) return;
+        JSONArray compact = new JSONArray();
+        for (int i = 0; i < found.length(); i++) {
+            JSONObject item = found.optJSONObject(i);
+            if (item == null) continue;
+            JSONObject id = item.optJSONObject("id");
+            JSONObject snippet = item.optJSONObject("snippet");
+            if (id == null || snippet == null) continue;
+            String videoId = id.optString("videoId", "");
+            if (videoId.isEmpty()) continue;
+            JSONObject video = new JSONObject();
+            put(video, "videoId", videoId);
+            put(video, "title", snippet.optString("title", "Video"));
+            put(video, "channelTitle", snippet.optString("channelTitle", ""));
+            put(video, "thumbnailUrl", thumbnailUrlFor(snippet, videoId));
+            compact.put(video);
+        }
+        sendToNode(node.id, "video.results", put(new JSONObject(), "items", compact));
     }
 
     private void searchVideosForWatch(String query, String nodeId) {

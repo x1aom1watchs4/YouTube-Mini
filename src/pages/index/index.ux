@@ -14,7 +14,7 @@
         <text class="playback-note">{{streamActive ? 'LIVE VIDEO • PHONE DECODE' : 'SHORTS PREVIEW'}}</text>
       </div>
       <div class="actions">
-        <div class="action" @click="showComments"><text class="action-icon">▤</text><text class="action-count">{{currentCommentCount}}</text></div>
+        <div class="action comments-action" @click="showComments"><text class="action-icon">▤</text><text class="action-count">{{currentCommentCount}}</text><text class="action-label">COMMENTS</text></div>
         <div class="action"><text class="action-icon">♥</text><text class="action-count">{{currentLikeCount}}</text></div>
         <div class="action" @click="openVideoOnPhone"><text class="action-icon">↗</text><text class="action-label">OPEN</text></div>
       </div>
@@ -27,7 +27,7 @@
       <list class="comments-list" bounces="true">
         <list-item for="{{commentList}}" tid="index" class="comment"><text class="author">{{$item.author}}</text><text class="comment-text">{{$item.text}}</text></list-item>
       </list>
-      <text if="{{commentList.length === 0}}" class="comments-empty">{{commentsLabel}}</text>
+      <div if="{{commentList.length === 0}}" class="comments-empty-wrap"><text class="comments-empty">{{commentsLabel}}</text><text class="retry-comments" @click="reloadComments">↻ TAP TO RETRY</text></div>
     </div>
   </div>
 </template>
@@ -47,8 +47,9 @@
 .channel { color: #ffffff; font-size: 10px; font-weight: bold; }
 .video-title { color: #ffffff; font-size: 11px; margin-top: 4px; max-lines: 3; }
 .playback-note { color: #ffb8c4; font-size: 7px; margin-top: 6px; }
-.actions { position: absolute; right: 7px; bottom: 65px; width: 36px; flex-direction: column; align-items: center; }
-.action { width: 36px; height: 48px; justify-content: center; align-items: center; }
+.actions { position: absolute; right: 3px; bottom: 65px; width: 48px; flex-direction: column; align-items: center; }
+.action { width: 48px; height: 58px; justify-content: center; align-items: center; }
+.comments-action { border-radius: 24px; background-color: rgba(15,15,15,0.42); }
 .action-icon { color: #ffffff; font-size: 20px; font-weight: bold; }
 .action-count { color: #ffffff; font-size: 8px; margin-top: 1px; }
 .action-label { color: #ffffff; font-size: 7px; margin-top: 2px; }
@@ -63,7 +64,9 @@
 .comment { width: 100%; padding: 6px 2px; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
 .author { color: #ff7890; font-size: 9px; }
 .comment-text { color: #eeeeee; font-size: 10px; margin-top: 3px; }
-.comments-empty { color: #aaaaaa; font-size: 10px; margin-top: 12px; }
+.comments-empty-wrap { width: 100%; align-items: center; margin-top: 12px; }
+.comments-empty { color: #aaaaaa; font-size: 10px; text-align: center; }
+.retry-comments { color: #ff7890; font-size: 10px; font-weight: bold; padding: 12px 18px; margin-top: 8px; background-color: #292029; border-radius: 18px; }
 </style>
 <script>
 import link from '../../common/scripts/interconnect'
@@ -229,7 +232,20 @@ export default {
     this.commentsVisible = true
     this.commentsLabel = 'Loading comments...'
     this.commentList = []
-    link.send('comments.load', { videoId: this.selectedVideoId })
+    if (!link.send('comments.load', { videoId: this.selectedVideoId })) {
+      this.commentsLabel = 'Phone not connected. Tap to retry.'
+    }
+  },
+  reloadComments() {
+    if (!this.selectedVideoId) {
+      this.commentsLabel = 'Select a Short first'
+      return
+    }
+    this.commentsLabel = 'Loading comments...'
+    this.commentList = []
+    if (!link.send('comments.load', { videoId: this.selectedVideoId })) {
+      this.commentsLabel = 'Phone not connected. Tap to retry.'
+    }
   },
   hideComments() { this.commentsVisible = false },
   openVideoOnPhone() { if (this.selectedVideoId) link.send('video.open', { videoId: this.selectedVideoId }) }

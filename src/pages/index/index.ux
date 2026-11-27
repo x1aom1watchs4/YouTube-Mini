@@ -2,188 +2,84 @@
   <div class="page">
     <div class="header">
       <text class="logo">SHORTS</text>
-      <text class="connection">{{connected ? '●' : '○'}}</text>
+      <text class="status">{{connected ? 'ONLINE' : 'OFFLINE'}}</text>
     </div>
-
-    <div class="screen">
-      <image if="{{selectedThumbnailUrl && !thumbnailFailed}}" class="cover" src="{{selectedThumbnailUrl}}" @error="thumbnailError" />
-      <div if="{{!selectedThumbnailUrl || thumbnailFailed}}" class="empty">
-        <text class="play">▶</text>
-        <text class="empty-title">SHORTS</text>
-        <text class="empty-note">Choose on phone</text>
-      </div>
-      <div class="overlay">
-        <text class="clip-tag">GIF TEST · 2 SEC</text>
-        <text class="video-title">{{videoTitle}}</text>
-        <text class="channel">{{videoSubtitle}}</text>
-      </div>
+    <text class="hint">SEARCH ON PHONE</text>
+    <text class="subhint">Results appear here automatically</text>
+    <list class="results" bounces="true">
+      <list-item for="{{videoList}}" tid="videoId" class="result" type="video" @click="selectResult($item)">
+        <text class="result-title">{{$item.title}}</text>
+        <text class="result-channel">{{$item.channelTitle}}</text>
+      </list-item>
+    </list>
+    <text if="{{videoList.length === 0}}" class="empty">NO RESULTS YET</text>
+    <div class="selected">
+      <text class="selected-label">SELECTED</text>
+      <text class="selected-title">{{videoTitle}}</text>
     </div>
-
     <div class="actions">
       <text class="action primary" @click="openVideoOnPhone">OPEN ON PHONE</text>
-      <text class="action" @click="retryConnection">RECONNECT</text>
-    </div>
-
-    <div class="footer">
-      <text class="foot">{{connectionLabel}}</text>
-      <text class="foot">NO AUDIO · LOW POWER</text>
+      <text class="action" @click="retryConnection">RETRY</text>
     </div>
   </div>
 </template>
-
 <style>
-.page {
-  width: 100%;
-  height: 100%;
-  padding: 14px;
-  background-color: #080808;
-  flex-direction: column;
-}
-.header {
-  height: 28px;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-.logo {
-  color: #ffffff;
-  font-size: 19px;
-  font-weight: bold;
-}
-.connection {
-  color: #ff3347;
-  font-size: 16px;
-}
-.screen {
-  flex: 1;
-  margin-top: 8px;
-  border-radius: 16px;
-  background-color: #202020;
-  overflow: hidden;
-  position: relative;
-}
-.cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.empty {
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-.play {
-  color: #ff3347;
-  font-size: 34px;
-}
-.empty-title {
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 8px;
-}
-.empty-note {
-  color: #aaaaaa;
-  font-size: 12px;
-  margin-top: 5px;
-}
-.overlay {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  padding: 8px;
-  background-color: #99000000;
-  border-radius: 8px;
-}
-.clip-tag {
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: bold;
-}
-.video-title {
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: bold;
-  margin-top: 4px;
-  max-lines: 2;
-}
-.channel {
-  color: #dddddd;
-  font-size: 10px;
-  margin-top: 3px;
-}
-.actions {
-  flex-direction: row;
-  margin-top: 8px;
-}
-.action {
-  flex: 1;
-  height: 34px;
-  margin-left: 3px;
-  margin-right: 3px;
-  border-radius: 9px;
-  background-color: #292929;
-  color: #ffffff;
-  text-align: center;
-  font-size: 10px;
-  padding-top: 10px;
-}
-.primary {
-  background-color: #ff0033;
-}
-.footer {
-  height: 24px;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-.foot {
-  color: #888888;
-  font-size: 9px;
-}
+.page { width: 100%; height: 100%; padding: 10px; background-color: #080808; flex-direction: column; }
+.header { height: 28px; flex-direction: row; justify-content: space-between; align-items: center; }
+.logo { color: #ffffff; font-size: 19px; font-weight: bold; }
+.status { color: #ff3655; font-size: 11px; font-weight: bold; }
+.hint { color: #ffffff; font-size: 14px; font-weight: bold; margin-top: 5px; }
+.subhint { color: #999999; font-size: 10px; margin-top: 2px; }
+.results { width: 100%; flex: 1; margin-top: 7px; }
+.result { width: 100%; height: 47px; padding-left: 8px; padding-right: 8px; justify-content: center; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
+.result-title { color: #ffffff; font-size: 12px; }
+.result-channel { color: #999999; font-size: 9px; margin-top: 2px; }
+.empty { color: #777777; font-size: 11px; text-align: center; margin-top: 8px; }
+.selected { height: 38px; padding-left: 7px; justify-content: center; flex-direction: column; background-color: #191919; border-radius: 7px; }
+.selected-label { color: #ff3655; font-size: 8px; font-weight: bold; }
+.selected-title { color: #ffffff; font-size: 10px; margin-top: 2px; }
+.actions { height: 39px; flex-direction: row; margin-top: 6px; }
+.action { flex: 1; height: 36px; margin-left: 3px; margin-right: 3px; border-radius: 8px; background-color: #292929; color: #ffffff; text-align: center; font-size: 11px; padding-top: 11px; font-weight: bold; }
+.primary { background-color: #e9003d; }
 </style>
-
 <script>
 import link from '../../common/scripts/interconnect'
-
 export default {
   private: {
     connected: false,
-    connectionLabel: 'PHONE OFFLINE',
-    videoTitle: 'No Short selected',
-    videoSubtitle: 'Select a video in phone app',
+    videoList: [],
+    videoTitle: 'Nothing selected',
     selectedVideoId: '',
-    selectedThumbnailUrl: '',
-    thumbnailFailed: true
+    selectedThumbnailUrl: ''
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
-      if (event.message && event.message.type === 'video.select') {
+      if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
-        this.videoTitle = payload.title || 'Short selected'
-        this.videoSubtitle = payload.channelTitle || 'From phone'
-        this.selectedVideoId = payload.videoId || ''
-        this.selectedThumbnailUrl = payload.thumbnailUrl || ''
-        this.thumbnailFailed = !this.selectedThumbnailUrl
+        this.videoList = Array.isArray(payload.items) ? payload.items : []
       }
-      if (event.state) {
-        this.connected = event.state === 'connected'
-        this.connectionLabel = this.connected ? 'PHONE CONNECTED' : 'PHONE OFFLINE'
+      if (event.message && event.message.type === 'video.search.error') {
+        this.videoList = []
       }
+      if (event.state) this.connected = event.state === 'connected'
     })
     link.checkConnection()
   },
   onDestroy() {
     if (this.unsubscribeLink) this.unsubscribeLink()
   },
-  retryConnection() {
-    link.checkConnection()
-  },
-  thumbnailError() {
-    this.thumbnailFailed = true
+  retryConnection() { link.checkConnection() },
+  selectResult(item) {
+    if (!item || !item.videoId) return
+    this.selectedVideoId = item.videoId
+    this.videoTitle = item.title || 'Short selected'
+    this.selectedThumbnailUrl = item.thumbnailUrl || ''
+    link.send('video.select', {
+      videoId: item.videoId,
+      title: this.videoTitle,
+      channelTitle: item.channelTitle || '',
+      thumbnailUrl: this.selectedThumbnailUrl
+    })
   },
   openVideoOnPhone() {
     if (!this.selectedVideoId) return

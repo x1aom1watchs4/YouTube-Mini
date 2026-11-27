@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.util.Base64;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.provider.OpenableColumns;
 import android.net.Uri;
@@ -66,6 +67,7 @@ public final class MainActivity extends Activity {
     private TextView status;
     private TextView playbackStatus;
     private EditText apiKey;
+    private SharedPreferences preferences;
     private EditText searchQuery;
     private EditText videoId;
     private EditText videoTitle;
@@ -130,6 +132,7 @@ public final class MainActivity extends Activity {
                                 try {
                                     Intent intent = new Intent(Intent.ACTION_VIEW,
                                         Uri.parse("https://www.youtube.com/shorts/" + Uri.encode(id)));
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                     startActivity(intent);
                                     playbackStatus.setText("Открываем видео в YouTube");
                                 } catch (Exception error) {
@@ -166,6 +169,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        preferences = getSharedPreferences("youtube_mini_settings", MODE_PRIVATE);
         buildUi();
         nodeApi = Wearable.getNodeApi(getApplicationContext());
         messageApi = Wearable.getMessageApi(getApplicationContext());
@@ -203,17 +207,20 @@ public final class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(28, 28, 28, 28);
+        root.setBackgroundColor(android.graphics.Color.rgb(245, 245, 245));
         scroll.addView(root);
 
         TextView heading = new TextView(this);
         heading.setText("YouTube Mini");
         heading.setTextSize(28);
+        heading.setTextColor(android.graphics.Color.rgb(25, 25, 25));
         heading.setGravity(Gravity.CENTER_VERTICAL);
         root.addView(heading);
 
         status = new TextView(this);
         status.setText("Проверяем связь с часами…");
         status.setTextSize(16);
+        status.setTextColor(android.graphics.Color.rgb(45, 45, 45));
         root.addView(status);
 
         Button refresh = new Button(this);
@@ -230,15 +237,26 @@ public final class MainActivity extends Activity {
 
         apiKey = new EditText(this);
         apiKey.setSingleLine(true);
-        apiKey.setTextColor(android.graphics.Color.WHITE);
-        apiKey.setHintTextColor(android.graphics.Color.GRAY);
+        apiKey.setTextColor(android.graphics.Color.rgb(25, 25, 25));
+        apiKey.setHintTextColor(android.graphics.Color.rgb(105, 105, 105));
+        apiKey.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(90, 90, 90)));
+        apiKey.setText(preferences.getString("youtube_api_key", ""));
+        apiKey.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                preferences.edit().putString("youtube_api_key", value.toString()).apply();
+            }
+            @Override public void afterTextChanged(android.text.Editable value) {}
+        });
         apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         apiKey.setHint("YouTube Data API key");
         root.addView(apiKey);
 
         searchQuery = new EditText(this);
         searchQuery.setSingleLine(true);
-        searchQuery.setTextColor(android.graphics.Color.WHITE);
+        searchQuery.setTextColor(android.graphics.Color.rgb(25, 25, 25));
+        searchQuery.setHintTextColor(android.graphics.Color.rgb(105, 105, 105));
+        searchQuery.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(90, 90, 90)));
         searchQuery.setHintTextColor(android.graphics.Color.GRAY);
         searchQuery.setHint("Search videos");
         root.addView(searchQuery);
@@ -252,6 +270,7 @@ public final class MainActivity extends Activity {
         note.setText("Short-duration search. Exact Shorts-only filtering is not available in YouTube Data API.");
         note.setTextColor(android.graphics.Color.GRAY);
         note.setTextSize(11);
+        note.setTextColor(android.graphics.Color.rgb(90, 90, 90));
         root.addView(note);
 
         results = new LinearLayout(this);
@@ -266,13 +285,17 @@ public final class MainActivity extends Activity {
 
         videoId = new EditText(this);
         videoId.setSingleLine(true);
-        videoId.setTextColor(android.graphics.Color.WHITE);
+        videoId.setTextColor(android.graphics.Color.rgb(25, 25, 25));
+        videoId.setHintTextColor(android.graphics.Color.rgb(105, 105, 105));
+        videoId.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(90, 90, 90)));
         videoId.setHint("Video ID");
         root.addView(videoId);
 
         videoTitle = new EditText(this);
         videoTitle.setSingleLine(true);
-        videoTitle.setTextColor(android.graphics.Color.WHITE);
+        videoTitle.setTextColor(android.graphics.Color.rgb(25, 25, 25));
+        videoTitle.setHintTextColor(android.graphics.Color.rgb(105, 105, 105));
+        videoTitle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(90, 90, 90)));
         videoTitle.setHint("Video title");
         root.addView(videoTitle);
 
@@ -282,7 +305,7 @@ public final class MainActivity extends Activity {
         root.addView(send);
 
         playbackStatus = new TextView(this);
-        playbackStatus.setTextColor(android.graphics.Color.LTGRAY);
+        playbackStatus.setTextColor(android.graphics.Color.rgb(55, 55, 55));
         playbackStatus.setText("Choose a result, then tap it on the watch to load comments.");
         root.addView(playbackStatus);
         setContentView(scroll);
@@ -513,7 +536,7 @@ public final class MainActivity extends Activity {
                     }
                     permissionRequestNodeId = "";
                     registerMessageListener(node);
-                    launchWatchApp(nodeId);
+                    runOnUiThread(() -> status.setText("Часы подключены. YouTube Mini готов к обмену данными."));
                 })
                 .addOnFailureListener(error -> runOnUiThread(() ->
                     status.setText("Не удалось проверить разрешение часов: " + safe(error))

@@ -22,7 +22,7 @@
       </div>
     </div>
     <div if="{{commentsVisible}}" class="comments-panel">
-      <div class="comments-top"><text class="comments-title">COMMENTS</text><text class="close" @click="hideComments">CLOSE ×</text></div>
+      <div class="comments-top"><text class="comments-title">COMMENTS ({{commentList.length}})</text><text class="close" @click="hideComments">CLOSE ×</text></div>
       <list class="comments-list" bounces="true">
         <list-item for="{{commentList}}" tid="index" class="comment"><text class="author">{{$item.author}}</text><text class="comment-text">{{$item.text}}</text></list-item>
       </list>
@@ -54,7 +54,7 @@
 .bottom-controls { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 27px; flex-direction: row; align-items: center; justify-content: space-between; }
 .nav-button { color: #ffffff; background-color: rgba(25,25,25,0.85); font-size: 9px; padding: 6px; border-radius: 12px; }
 .position { color: #dddddd; font-size: 8px; }
-.comments-panel { position: absolute; left: 0px; right: 0px; bottom: 0px; height: 72%; background-color: #111111; border-top-left-radius: 14px; border-top-right-radius: 14px; padding: 10px; }
+.comments-panel { position: absolute; left: 0px; right: 0px; bottom: 0px; height: 84%; background-color: #111111; border-top-left-radius: 14px; border-top-right-radius: 14px; padding: 10px; }
 .comments-top { height: 24px; flex-direction: row; justify-content: space-between; align-items: center; }
 .comments-title { color: #ffffff; font-size: 12px; font-weight: bold; }
 .close { color: #ff5574; font-size: 9px; }

@@ -87,7 +87,7 @@ public final class MainActivity extends Activity {
     private int localVideoFrameNumber;
     private String localVideoNodeId = "";
     private String localVideoStreamId = "";
-    private static final int VIDEO_FRAME_INTERVAL_MS = 67;
+    private static final int VIDEO_FRAME_INTERVAL_MS = 16;
     private static final int VIDEO_FRAME_MAX_BYTES = 6500;
     private static final int AUDIO_CHUNK_BYTES = 5000;
     private static final int MAX_AUDIO_BYTES = 8 * 1024 * 1024;

@@ -133,6 +133,9 @@ export default {
   },
   onDestroy() { if (this.unsubscribeLink) this.unsubscribeLink() },
   enqueueVideoFrame(encoded, sequence) {
+    // Bound latency when incoming frames exceed the watch's write/display rate.
+    // Drop stale queued frames and keep the newest frame.
+    if (this.frameWriteQueue.length >= 2) this.frameWriteQueue.shift()
     this.frameWriteQueue.push({ encoded, sequence })
     if (!this.frameWriteBusy) this.writeNextVideoFrame()
   },

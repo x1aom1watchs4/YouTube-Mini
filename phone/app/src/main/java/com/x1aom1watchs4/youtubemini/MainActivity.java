@@ -690,7 +690,7 @@ public final class MainActivity extends Activity {
             try {
                 String address = "https://www.googleapis.com/youtube/v3/commentThreads"
                     + "?part=snippet&videoId=" + URLEncoder.encode(videoId, "UTF-8")
-                    + "&maxResults=8&textFormat=plainText"
+                    + "&maxResults=100&textFormat=plainText"
                     + "&key=" + URLEncoder.encode(key, "UTF-8");
                 connection = (HttpURLConnection) new URL(address).openConnection();
                 connection.setConnectTimeout(8000);
@@ -720,7 +720,6 @@ public final class MainActivity extends Activity {
                 if (connection != null) connection.disconnect();
             }
             sendToNode(nodeId, "comments.items", put(new JSONObject(), "items", comments));
-            sendCommentImages(comments, nodeId);
         } catch (Exception error) {
             JSONObject failure = new JSONObject();
             put(failure, "items", new JSONArray());

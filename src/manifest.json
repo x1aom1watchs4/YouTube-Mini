@@ -2,8 +2,8 @@
   "package": "com.x1aom1watchs4.youtubemini",
   "name": "YT Mini",
   "icon": "/common/icon.png",
-  "versionName": "0.1.6",
-  "versionCode": 7,
+  "versionName": "0.1.7",
+  "versionCode": 8,
   "minPlatformVersion": 1000,
   "minAPILevel": 2,
   "deviceTypeList": [

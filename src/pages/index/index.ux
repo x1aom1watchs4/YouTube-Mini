@@ -125,7 +125,7 @@ export default {
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
         this.commentList = Array.isArray(payload.items) ? payload.items : []
-        this.commentsLabel = payload.error || (this.commentList.length + ' comments loaded')
+        this.commentsLabel = payload.error || (this.commentList.length > 0 ? (this.commentList.length + ' comments loaded') : 'No public comments for this video')
       }
       if (event.state) this.connected = event.state === 'connected'
     })
@@ -221,7 +221,13 @@ export default {
     if (event.direction === 'up' || event.direction === 'left') this.nextVideo()
     if (event.direction === 'down' || event.direction === 'right') this.previousVideo()
   },
-  showComments() { if (this.selectedVideoId) this.commentsVisible = true },
+  showComments() {
+    if (!this.selectedVideoId) return
+    this.commentsVisible = true
+    this.commentsLabel = 'Loading comments...'
+    this.commentList = []
+    link.send('comments.load', { videoId: this.selectedVideoId })
+  },
   hideComments() { this.commentsVisible = false },
   openVideoOnPhone() { if (this.selectedVideoId) link.send('video.open', { videoId: this.selectedVideoId }) }
 }

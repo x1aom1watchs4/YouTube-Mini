@@ -87,7 +87,7 @@ public final class MainActivity extends Activity {
     private int localVideoFrameNumber;
     private String localVideoNodeId = "";
     private String localVideoStreamId = "";
-    private static final int VIDEO_FRAME_INTERVAL_MS = 250;
+    private static final int VIDEO_FRAME_INTERVAL_MS = 67;
     private static final int VIDEO_FRAME_MAX_BYTES = 6500;
     private static final int AUDIO_CHUNK_BYTES = 5000;
     private static final int MAX_AUDIO_BYTES = 8 * 1024 * 1024;
@@ -162,6 +162,7 @@ public final class MainActivity extends Activity {
                         runOnUiThread(() -> {
                             videoId.setText(id);
                             videoTitle.setText(title);
+                            restoreLocalVideoFor(id);
                             playbackStatus.setText("На часах выбрано: " + title);
                         });
                     } else if ("video.search".equals(type)) {
@@ -365,7 +366,14 @@ public final class MainActivity extends Activity {
             } catch (Exception ignored) {}
             selectedVideoName = queryAudioName(selectedVideoUri);
             if ("audio-file".equals(selectedVideoName)) selectedVideoName = "Local video";
-            playbackStatus.setText("Selected video: " + selectedVideoName);
+            String boundVideoId = videoId.getText().toString().trim();
+            if (!boundVideoId.isEmpty()) {
+                preferences.edit().putString("local_video_for_" + boundVideoId, selectedVideoUri.toString()).apply();
+                playbackStatus.setText("Видео сохранено для ролика " + boundVideoId + ". Запускаем...");
+                if (activeNode != null) startLocalVideoStream();
+            } else {
+                playbackStatus.setText("Выбрано: " + selectedVideoName + ". Сначала выбери YouTube-ролик, чтобы сохранить привязку.");
+            }
             return;
         }
         if (requestCode != 4107) return;
@@ -462,6 +470,24 @@ public final class MainActivity extends Activity {
                     playbackStatus.setText("Audio transfer failed: " + safe(error))));
         } catch (Exception error) {
             runOnUiThread(() -> playbackStatus.setText("Audio transfer error: " + safe(error)));
+        }
+    }
+
+    private void restoreLocalVideoFor(String youtubeVideoId) {
+        if (youtubeVideoId == null || youtubeVideoId.trim().isEmpty()) return;
+        String saved = preferences.getString("local_video_for_" + youtubeVideoId.trim(), "");
+        if (saved.isEmpty()) return;
+        try {
+            Uri restored = Uri.parse(saved);
+            getContentResolver().openAssetFileDescriptor(restored, "r").close();
+            selectedVideoUri = restored;
+            selectedVideoName = queryAudioName(restored);
+            playbackStatus.setText("Найдено сохранённое видео для " + youtubeVideoId);
+            if (activeNode != null) startLocalVideoStream();
+        } catch (Exception error) {
+            preferences.edit().remove("local_video_for_" + youtubeVideoId.trim()).apply();
+            selectedVideoUri = null;
+            playbackStatus.setText("Сохранённый файл недоступен. Выбери его заново.");
         }
     }
 
@@ -919,7 +945,8 @@ public final class MainActivity extends Activity {
     }
 
     private void fetchCommentsForWatch(String videoId, String nodeId) {
-        String key = apiKey.getText().toString().trim();
+        // Read the persisted key: this method runs on the IO thread, never touch EditText here.
+        String key = preferences.getString("youtube_api_key", "").trim();
         try {
             if (key.isEmpty()) throw new IllegalStateException("Сначала укажи YouTube API key в приложении телефона.");
             HttpURLConnection connection = null;
@@ -939,9 +966,11 @@ public final class MainActivity extends Activity {
                 if (code < 200 || code >= 300) {
                     throw new IllegalStateException("YouTube API: HTTP " + code);
                 }
-                JSONArray items = new JSONObject(body).optJSONArray("items");
+                JSONObject response = new JSONObject(body);
+                JSONArray items = response.optJSONArray("items");
                 if (items != null) {
-                    for (int i = 0; i < items.length(); i++) {
+                    // Keep the response safely below XMS message-size limits.
+                    for (int i = 0; i < items.length() && comments.length() < 18; i++) {
                         JSONObject item = items.optJSONObject(i);
                         JSONObject snippet = item == null ? null : item.optJSONObject("snippet");
                         JSONObject top = snippet == null ? null : snippet.optJSONObject("topLevelComment");
@@ -949,7 +978,9 @@ public final class MainActivity extends Activity {
                         if (commentSnippet == null) continue;
                         JSONObject row = new JSONObject();
                         row.put("author", commentSnippet.optString("authorDisplayName", "User"));
-                        row.put("text", commentSnippet.optString("textDisplay", ""));
+                        String commentText = commentSnippet.optString("textDisplay", "");
+                        if (commentText.length() > 320) commentText = commentText.substring(0, 317) + "...";
+                        row.put("text", commentText);
                         comments.put(row);
                     }
                 }
@@ -960,7 +991,8 @@ public final class MainActivity extends Activity {
         } catch (Exception error) {
             JSONObject failure = new JSONObject();
             put(failure, "items", new JSONArray());
-            put(failure, "error", "Could not load comments. Check the phone connection, API key, or video comment settings.");
+            String message = safe(error);
+            put(failure, "error", message.length() > 150 ? message.substring(0, 147) + "..." : message);
             sendToNode(nodeId, "comments.items", failure);
             runOnUiThread(() -> playbackStatus.setText("Комментарии: " + safe(error)));
         }
@@ -1163,6 +1195,7 @@ public final class MainActivity extends Activity {
         put(payload, "likeCount", likeCount == null ? "" : likeCount);
         put(payload, "commentCount", commentCount == null ? "" : commentCount);
         send("video.select", payload);
+        restoreLocalVideoFor(id);
     }
 
     private static String thumbnailUrlFor(JSONObject snippet, String videoId) {

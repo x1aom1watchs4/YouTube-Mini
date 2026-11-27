@@ -1,0 +1,7 @@
+<script>
+export default {
+  onCreate() {
+    console.log('YouTube Mini 0.1 started')
+  }
+}
+</script>

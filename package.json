@@ -1,0 +1,23 @@
+{
+  "name": "youtube-mini-vela",
+  "version": "0.1.1",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "prebuild": "node scripts/generate-icon.cjs",
+    "start": "aiot server --watch --open-nuttx",
+    "build": "aiot build",
+    "release": "aiot release",
+    "watch": "aiot watch --open-nuttx",
+    "lint": "eslint --format codeframe --ext .ux,.js src/",
+    "pre-release": "node scripts/generate-icon.cjs"
+  },
+  "devDependencies": {
+    "aiot-toolkit": "^2.0.5",
+    "eslint": "^6.8.0",
+    "eslint-plugin-ux": "^0.0.4",
+    "babel-eslint": "^10.0.1"
+  }
+}

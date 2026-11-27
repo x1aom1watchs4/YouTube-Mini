@@ -3,17 +3,11 @@
     <text class="heading">VELA VIDEO PROBE</text>
     <text class="status">EXPERIMENTAL • NOT YOUTUBE</text>
     <div class="player">
-      <video
-        class="video"
-        src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-        controls="true"
-        autoplay="false"
-        loop="false"
-      />
+      <video class="video" src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" controls="true" autoplay="false" loop="false" />
     </div>
-    <text class="note">If a moving video appears above and the controls work, this firmware exposes a video element to Quick Apps.</text>
-    <text class="note">If the screen is blank or the app fails to build, video playback is not confirmed by this test.</text>
-    <text class="footer">This is a test clip only. No YouTube stream is used.</text>
+    <text class="note">If moving video appears and controls work, this firmware exposes a video element to Quick Apps.</text>
+    <text class="note">A blank screen or build failure means video playback is not confirmed by this test.</text>
+    <text class="footer">Test clip only. No YouTube stream is used.</text>
   </div>
 </template>
 <style>
@@ -27,8 +21,6 @@
 </style>
 <script>
 export default {
-  onInit() {
-    console.info('Vela video component probe loaded')
-  }
+  onInit() { console.info('Vela video component probe loaded') }
 }
 </script>

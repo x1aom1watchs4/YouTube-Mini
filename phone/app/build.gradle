@@ -1,0 +1,50 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.x1aom1watchs4.youtubemini"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.x1aom1watchs4.youtubemini"
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath != null && !keystorePath.isBlank()) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias "youtube-mini"
+                keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                storeType "PKCS12"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    lint {
+        disable 'ExpiredTargetSdkVersion'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    // Place Xiaomi's xms-wearable-lib AAR from the official Vela
+    // interconnect demo in app/libs before building.
+    implementation fileTree(dir: "libs", include: ["*.aar", "*.jar"])
+}

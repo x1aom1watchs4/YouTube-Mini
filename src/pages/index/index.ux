@@ -85,7 +85,7 @@ export default {
     selectedTitle: 'Select a Short',
     selectedVideoId: '',
     commentsLabel: 'Select video',
-    showAnimationTest: false,
+    showAnimationTest: true,
     animationFrames: [
       { src: '/common/anim/frame-01.png' },
       { src: '/common/anim/frame-02.png' },

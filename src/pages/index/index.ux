@@ -1,769 +1,193 @@
 <template>
-  <scroll class="page" scroll-y="true">
-    <div class="top">
-      <text class="brand">YouTube Mini</text>
-      <text class="version">0.1 • WATCH</text>
+  <div class="page">
+    <div class="header">
+      <text class="logo">SHORTS</text>
+      <text class="connection">{{connected ? '●' : '○'}}</text>
     </div>
 
-    <div class="connection">
-      <div class="status-dot {{connected ? 'online' : 'offline'}}"></div>
-      <text class="status">{{connectionLabel}}</text>
-    </div>
-
-    <div class="search-panel">
-      <text class="video-label">SEARCH YOUTUBE</text>
-      <text class="query-display">{{searchQuery || 'Type a video name...'}}</text>
-      <div class="keyboard-row">
-        <text class="key" @click="keyA">A</text><text class="key" @click="keyB">B</text><text class="key" @click="keyC">C</text><text class="key" @click="keyD">D</text><text class="key" @click="keyE">E</text><text class="key" @click="keyF">F</text><text class="key" @click="keyG">G</text><text class="key" @click="keyH">H</text><text class="key" @click="keyI">I</text>
+    <div class="screen">
+      <image if="{{selectedThumbnailUrl && !thumbnailFailed}}" class="cover" src="{{selectedThumbnailUrl}}" @error="thumbnailError" />
+      <div if="{{!selectedThumbnailUrl || thumbnailFailed}}" class="empty">
+        <text class="play">▶</text>
+        <text class="empty-title">SHORTS</text>
+        <text class="empty-note">Choose on phone</text>
       </div>
-      <div class="keyboard-row">
-        <text class="key" @click="keyJ">J</text><text class="key" @click="keyK">K</text><text class="key" @click="keyL">L</text><text class="key" @click="keyM">M</text><text class="key" @click="keyN">N</text><text class="key" @click="keyO">O</text><text class="key" @click="keyP">P</text><text class="key" @click="keyQ">Q</text><text class="key" @click="keyR">R</text>
-      </div>
-      <div class="keyboard-row">
-        <text class="key" @click="keyS">S</text><text class="key" @click="keyT">T</text><text class="key" @click="keyU">U</text><text class="key" @click="keyV">V</text><text class="key" @click="keyW">W</text><text class="key" @click="keyX">X</text><text class="key" @click="keyY">Y</text><text class="key" @click="keyZ">Z</text>
-      </div>
-      <div class="keyboard-row">
-        <text class="key key-wide" @click="searchSpace">SPACE</text>
-        <text class="key key-action" @click="searchBackspace">DEL</text>
-        <text class="key key-action" @click="searchClear">CLEAR</text>
-      </div>
-      <text class="search-button" @click="searchFromWatch">SEARCH ON PHONE</text>
-      <text class="search-hint">{{searchHint}}</text>
-    </div>
-    <div class="watch-results">
-      <text class="video-label">SEARCH RESULTS</text>
-      <div class="result" for="{{videoResults}}" @click="selectSearchResult($item)">
-        <image class="result-thumb" src="{{$item.thumbnailUrl}}" />
-        <text class="result-title">{{$item.title}}</text>
-        <text class="result-channel">{{$item.channelTitle}}</text>
-        <text class="result-channel">LIKES: {{$item.likeCount}}  COMMENTS: {{$item.commentCount}}</text>
-      </div>
-      <text if="{{videoResults.length === 0}}" class="search-hint">Results from your phone will appear here.</text>
-    </div>
-
-    <div class="hero">
-      <text class="eyebrow">YOUTUBE ON YOUR WRIST</text>
-      <text class="headline">Your video</text>
-      <text class="sub">Select a video in the phone app.</text>
-    </div>
-
-    <div class="video-card">
-      <text class="video-label">SELECTED VIDEO</text>
-      <image if="{{selectedThumbnailUrl && !thumbnailFailed}}" class="selected-thumb" src="{{selectedThumbnailUrl}}" @complete="thumbnailLoaded" @error="thumbnailError" />
-      <div if="{{!selectedThumbnailUrl || thumbnailFailed}}" class="thumb-fallback">
-        <text class="thumb-fallback-title">VIDEO COVER</text>
-        <text class="thumb-fallback-note">{{thumbnailMessage}}</text>
-      </div>
-      <text class="video-title">{{videoTitle}}</text>
-      <text class="video-sub">{{videoSubtitle}}</text>
-      <text class="search-hint">{{searchHint}}</text>
-      <text class="open-video" @click="openVideoOnPhone">OPEN ON PHONE</text>
-      <div class="stats-panel">
-        <div class="stat"><text class="stat-value">{{selectedLikeCount}}</text><text class="stat-label">LIKES</text></div>
-        <div class="stat"><text class="stat-value">{{selectedCommentCount}}</text><text class="stat-label">COMMENTS</text></div>
-      </div>
-      <text class="comments-button" @click="loadComments">VIEW COMMENTS</text>
-      <text class="comments-heading">PUBLIC COMMENTS</text>
-      <text class="comments-text">{{commentsText}}</text>
-      <div class="comment-image-card" for="{{commentImages}}">
-        <image class="comment-image" src="{{$item.uri}}" />
+      <div class="overlay">
+        <text class="clip-tag">GIF TEST · 2 SEC</text>
+        <text class="video-title">{{videoTitle}}</text>
+        <text class="channel">{{videoSubtitle}}</text>
       </div>
     </div>
 
-    <div class="audio-card">
-      <text class="video-label">AUDIO PLAYER</text>
-      <text class="audio-status">{{audioStatus}}</text>
-      <div class="audio-controls">
-        <text class="audio-control audio-play" @click="playAudio">PLAY</text>
-        <text class="audio-control" @click="pauseAudio">PAUSE</text>
-        <text class="audio-control" @click="stopAudio">STOP</text>
-      </div>
-      <text class="audio-note">Choose an audio file in the phone app and send it here. Direct audio URLs are also supported.</text>
+    <div class="actions">
+      <text class="action primary" @click="openVideoOnPhone">OPEN ON PHONE</text>
+      <text class="action" @click="retryConnection">RECONNECT</text>
     </div>
 
-    <div class="bottom">
-      <text class="retry" @click="retryConnection">CHECK CONNECTION</text>
-      <text class="foot">PHONE - WATCH</text>
+    <div class="footer">
+      <text class="foot">{{connectionLabel}}</text>
+      <text class="foot">NO AUDIO · LOW POWER</text>
     </div>
-  </scroll>
+  </div>
 </template>
 
 <style>
 .page {
   width: 100%;
   height: 100%;
-  background-color: #090b10;
-  padding: 28px;
+  padding: 14px;
+  background-color: #080808;
   flex-direction: column;
 }
-.top {
+.header {
+  height: 28px;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
 }
-.brand {
+.logo {
   color: #ffffff;
-  font-size: 27px;
+  font-size: 19px;
   font-weight: bold;
-}
-.version {
-  color: #858b98;
-  font-size: 13px;
 }
 .connection {
-  margin-top: 22px;
-  height: 38px;
-  border-radius: 20px;
-  background-color: #171b24;
-  flex-direction: row;
-  align-items: center;
-  padding-left: 14px;
-}
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-  margin-right: 9px;
-}
-.online { background-color: #38d996; }
-.offline { background-color: #ff6b6b; }
-.status {
-  color: #dce1e9;
-  font-size: 15px;
-}
-.search-panel {
-  margin-top: 18px;
-  padding: 14px;
-  border-radius: 18px;
-  background-color: #171b24;
-  flex-direction: column;
-}
-.query-display {
-  margin-top: 10px;
-  min-height: 34px;
-  color: #ffffff;
-  background-color: #292f3b;
-  border-radius: 10px;
-  padding: 8px;
-  font-size: 15px;
-}
-.keyboard-row {
-  flex-direction: row;
-  justify-content: center;
-  margin-top: 5px;
-}
-.key {
-  flex: 1;
-  margin-left: 2px;
-  margin-right: 2px;
-  height: 30px;
-  border-radius: 6px;
-  background-color: #303847;
-  color: #ffffff;
-  text-align: center;
-  font-size: 13px;
-  padding-top: 7px;
-}
-.key-action {
-  background-color: #5a3440;
-}
-.key-wide {
-  flex: 4;
-  font-size: 10px;
-}
-.search-button {
-  margin-top: 8px;
-  height: 40px;
-  color: #ffffff;
-  background-color: #ff3347;
-  border-radius: 10px;
-  font-size: 14px;
-}
-.watch-results {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  background-color: #171b24;
-  flex-direction: column;
-}
-.search-hint {
-  margin-top: 8px;
-  color: #8e9aaf;
-  font-size: 12px;
-}
-.result {
-  margin-top: 8px;
-  padding: 9px;
-  border-radius: 10px;
-  background-color: #252b36;
-  flex-direction: column;
-}
-.result-thumb {
-  width: 100%;
-  height: 110px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-.selected-thumb {
-  width: 100%;
-  height: 150px;
-  margin-top: 12px;
-  border-radius: 12px;
-  object-fit: cover;
-}
-.thumb-fallback {
-  width: 100%;
-  height: 150px;
-  margin-top: 12px;
-  border-radius: 12px;
-  background-color: #252b36;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-.thumb-fallback-title {
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: bold;
-}
-.thumb-fallback-note {
-  color: #aeb8c8;
-  font-size: 11px;
-  margin-top: 8px;
-  text-align: center;
-}
-.audio-card {
-  margin-top: 18px;
-  padding: 18px;
-  border-radius: 20px;
-  background-color: #171b24;
-  flex-direction: column;
-}
-.audio-status {
-  color: #ffffff;
-  font-size: 13px;
-  margin-top: 10px;
-}
-.audio-controls {
-  flex-direction: row;
-  justify-content: space-between;
-  margin-top: 12px;
-}
-.audio-control {
-  flex: 1;
-  color: #ffffff;
-  text-align: center;
-  font-size: 12px;
-  padding: 12px 4px;
-  margin-left: 3px;
-  margin-right: 3px;
-  border-radius: 9px;
-  background-color: #303847;
-}
-.audio-play {
-  background-color: #ff3347;
-}
-.audio-note {
-  color: #8e9aaf;
-  font-size: 11px;
-  margin-top: 10px;
-  line-height: 16px;
-}
-.result-stats, .stats-panel {
-  flex-direction: row;
-  justify-content: space-around;
-  margin-top: 14px;
-  padding: 14px 8px;
-  border-radius: 14px;
-  background-color: #252b36;
-}
-.stat {
-  flex: 1;
-  align-items: center;
-}
-.stat-value {
-  color: #ffffff;
-  font-size: 25px;
-  font-weight: bold;
-}
-.stat-label {
-  color: #aeb8c8;
-  font-size: 12px;
-  margin-top: 4px;
-  font-weight: bold;
-}
-.comments-heading {
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: bold;
-  margin-top: 14px;
-}
-.comments-button {
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background-color: #303847;
-  color: #ffffff;
-  text-align: center;
-  font-size: 13px;
-}
-.comment-image-card {
-  margin-top: 10px;
-  padding: 6px;
-  border-radius: 10px;
-  background-color: #252b36;
-}
-.comment-image {
-  width: 100%;
-  height: 100px;
-  object-fit: contain;
-}
-.comments-text {
-  color: #c5ccda;
-  font-size: 12px;
-  margin-top: 8px;
-  line-height: 18px;
-}
-.open-video {
-  margin-top: 14px;
-  padding: 10px;
-  border-radius: 10px;
-  background-color: #ff3347;
-  color: #ffffff;
-  text-align: center;
-  font-size: 13px;
-}
-.result-title {
-  color: #ffffff;
-  font-size: 13px;
-}
-.result-channel {
-  color: #9ba5b5;
-  font-size: 11px;
-  margin-top: 3px;
-}
-.hero {
-  margin-top: 24px;
-  flex-direction: column;
-}
-.eyebrow {
-  color: #8e9aaf;
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-.headline {
-  color: #ffffff;
-  font-size: 32px;
-  font-weight: bold;
-  margin-top: 8px;
-}
-.sub {
-  color: #a7afbd;
+  color: #ff3347;
   font-size: 16px;
-  margin-top: 8px;
-  line-height: 23px;
 }
-.video-card {
-  margin-top: 28px;
-  padding: 18px;
-  border-radius: 22px;
-  background-color: #171b24;
+.screen {
+  flex: 1;
+  margin-top: 8px;
+  border-radius: 16px;
+  background-color: #202020;
+  overflow: hidden;
+  position: relative;
+}
+.cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.empty {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
 }
-.video-label {
-  color: #8e9aaf;
-  font-size: 12px;
+.play {
+  color: #ff3347;
+  font-size: 34px;
 }
-.video-title {
+.empty-title {
   color: #ffffff;
   font-size: 20px;
   font-weight: bold;
-  margin-top: 12px;
+  margin-top: 8px;
 }
-.video-sub {
-  color: #a7afbd;
-  font-size: 14px;
+.empty-note {
+  color: #aaaaaa;
+  font-size: 12px;
   margin-top: 5px;
 }
-.controls {
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
+.overlay {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  padding: 8px;
+  background-color: #99000000;
+  border-radius: 8px;
 }
-.control {
-  width: 52px;
-  height: 52px;
-  border-radius: 26px;
-  background-color: #292f3b;
+.clip-tag {
   color: #ffffff;
-  font-size: 23px;
+  font-size: 10px;
+  font-weight: bold;
+}
+.video-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 4px;
+  max-lines: 2;
+}
+.channel {
+  color: #dddddd;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.actions {
+  flex-direction: row;
+  margin-top: 8px;
+}
+.action {
+  flex: 1;
+  height: 34px;
+  margin-left: 3px;
+  margin-right: 3px;
+  border-radius: 9px;
+  background-color: #292929;
+  color: #ffffff;
   text-align: center;
-  padding-top: 12px;
-  margin-left: 8px;
-  margin-right: 8px;
+  font-size: 10px;
+  padding-top: 10px;
 }
 .primary {
-  background-color: #ff3347;
+  background-color: #ff0033;
 }
-.hint {
-  color: #8e9aaf;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 14px;
-}
-.bottom {
-  margin-top: 22px;
+.footer {
+  height: 24px;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
 }
-.retry {
-  color: #ffffff;
-  background-color: #303847;
-  border-radius: 18px;
-  padding: 12px 20px;
-  font-size: 13px;
-}
 .foot {
-  color: #717b8d;
-  font-size: 12px;
-  margin-top: 10px;
+  color: #888888;
+  font-size: 9px;
 }
 </style>
 
 <script>
 import link from '../../common/scripts/interconnect'
-import audio from '@system.audio'
-import file from '@system.file'
 
 export default {
   private: {
     connected: false,
-    connectionLabel: 'Not connected',
-    videoTitle: 'No video selected',
-    videoSubtitle: 'Open YouTube Mini on your phone',
+    connectionLabel: 'PHONE OFFLINE',
+    videoTitle: 'No Short selected',
+    videoSubtitle: 'Select a video in phone app',
     selectedVideoId: '',
     selectedThumbnailUrl: '',
-    thumbnailFailed: true,
-    thumbnailMessage: 'Choose a video on your phone to load its cover.',
-    audioSource: '',
-    audioStatus: 'Waiting for an audio link from your phone.',
-    commentsText: 'Tap VIEW COMMENTS to load comments.',
-    commentImages: [],
-    incomingCommentImages: {},
-    pendingAudioId: '',
-    pendingAudioName: 'audio.mp3',
-    pendingAudioTotal: 0,
-    pendingAudioReceived: 0,
-    pendingAudioWritten: 0,
-    pendingAudioChunkIndex: -1,
-    pendingAudioWriting: false,
-    pendingAudioFinished: false,
-    pendingAudioUri: 'internal://files/current_audio.mp3',
-    selectedLikeCount: '—',
-    selectedCommentCount: '—',
-    searchHint: 'Enter a title, then search using your phone.',
-    searchQuery: '',
-    videoResults: [],
+    thumbnailFailed: true
   },
   onInit() {
-    audio.autoplay = false
-    audio.loop = false
-    audio.onplay = () => { this.audioStatus = 'PLAYING' }
-    audio.onpause = () => { this.audioStatus = 'PAUSED' }
-    audio.onstop = () => { this.audioStatus = 'STOPPED' }
-    audio.onloadeddata = () => { this.audioStatus = 'READY TO PLAY' }
-    audio.onended = () => { this.audioStatus = 'PLAYBACK FINISHED' }
-    audio.onerror = () => { this.audioStatus = 'PLAYBACK ERROR. CHECK THE AUDIO URL.' }
     this.unsubscribeLink = link.subscribe((event) => {
       if (event.message && event.message.type === 'video.select') {
         const payload = event.message.payload || {}
-        this.videoTitle = payload.title || 'Video selected'
-        this.videoSubtitle = payload.channelTitle || 'Sent from phone'
+        this.videoTitle = payload.title || 'Short selected'
+        this.videoSubtitle = payload.channelTitle || 'From phone'
         this.selectedVideoId = payload.videoId || ''
         this.selectedThumbnailUrl = payload.thumbnailUrl || ''
         this.thumbnailFailed = !this.selectedThumbnailUrl
-        this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL was sent.'
-        this.selectedLikeCount = payload.likeCount || '—'
-        this.selectedCommentCount = payload.commentCount || '—'
-      }
-      if (event.message && event.message.type === 'audio.source') {
-        const payload = event.message.payload || {}
-        const source = payload.src || ''
-        if (source.indexOf('https://') !== 0 && source.indexOf('http://') !== 0) {
-          this.audioStatus = 'Invalid audio URL. Send a direct HTTP(S) audio link.'
-        } else {
-          try {
-            audio.pause()
-            audio.src = source
-            audio.meta = { title: payload.title || 'YouTube Mini audio', artist: 'YouTube Mini', album: 'Audio' }
-            audio.autoplay = false
-            this.audioSource = source
-            this.audioStatus = 'AUDIO READY. PRESS PLAY.'
-          } catch (error) {
-            this.audioStatus = 'Could not load audio source.'
-          }
-        }
-      }
-
-      if (event.message && event.message.type === 'audio.file.start') {
-        const payload = event.message.payload || {}
-        this.pendingAudioId = payload.id || ''
-        this.pendingAudioName = payload.name || 'audio.mp3'
-        this.pendingAudioTotal = Number(payload.total) || 0
-        this.pendingAudioReceived = 0
-        this.pendingAudioWritten = 0
-        this.pendingAudioChunkIndex = -1
-        this.pendingAudioWriting = false
-        this.pendingAudioFinished = false
-        this.audioStatus = 'RECEIVING AUDIO FILE...'
-      }
-      if (event.message && event.message.type === 'audio.file.chunk') {
-        const payload = event.message.payload || {}
-        if (payload.id === this.pendingAudioId) {
-          const chunk = this.decodeBase64(payload.data || '')
-          const chunkIndex = Number(payload.index)
-          if (chunk && chunk.length && !this.pendingAudioWriting && chunkIndex === this.pendingAudioWritten) {
-            this.pendingAudioChunkIndex = chunkIndex
-            this.pendingAudioWriting = true
-            file.writeArrayBuffer({
-              uri: this.pendingAudioUri,
-              buffer: chunk.buffer,
-              append: chunkIndex > 0,
-              success: () => {
-                this.pendingAudioWriting = false
-                this.pendingAudioWritten += 1
-                this.pendingAudioReceived += 1
-                link.send('audio.file.ack', { id: this.pendingAudioId, index: chunkIndex })
-                this.finishAudioFileIfReady()
-              },
-              fail: () => {
-                this.pendingAudioWriting = false
-                this.audioStatus = 'AUDIO FILE SAVE FAILED. TRANSFER STOPPED.'
-                link.send('audio.file.error', { id: this.pendingAudioId, message: 'File save failed.' })
-              }
-            })
-          }
-        }
-      }
-      if (event.message && event.message.type === 'audio.file.finish') {
-        const payload = event.message.payload || {}
-        if (payload.id === this.pendingAudioId) {
-          this.pendingAudioFinished = true
-          this.finishAudioFileIfReady()
-        }
-      }
-      if (event.message && event.message.type === 'comments.image') {
-        const payload = event.message.payload || {}
-        const bytes = this.decodeBase64(payload.base64 || '')
-        if (bytes && payload.id) {
-          const uri = 'internal://files/comments/' + payload.id + '.png'
-          file.writeArrayBuffer({ uri, buffer: bytes.buffer, success: () => {
-            this.commentImages.push({ uri })
-            this.commentsText = 'Comments are shown as images.'
-          }, fail: () => { this.commentsText = 'Could not save comment image.' } })
-        }
-      }
-      if (event.message && event.message.type === 'comments.items') {
-        const payload = event.message.payload || {}
-        const items = Array.isArray(payload.items) ? payload.items : []
-        this.commentsText = payload.error || (items.length
-          ? items.map((item, index) => (index + 1) + '. ' + item.author + ': ' + item.text).join('\n\n')
-          : 'No public comments found. Comments may be disabled.')
-      }
-      if (event.message && event.message.type === 'video.results') {
-        const payload = event.message.payload || {}
-        this.videoResults = Array.isArray(payload.items) ? payload.items : []
-        this.searchHint = this.videoResults.length ? 'Tap a result to select it.' : 'No videos found.'
-      }
-      if (event.message && event.message.type === 'video.search.error') {
-        const payload = event.message.payload || {}
-        this.searchHint = payload.message || 'Search failed'
       }
       if (event.state) {
         this.connected = event.state === 'connected'
-        this.connectionLabel = this.connected ? 'Phone connected' : 'Not connected'
+        this.connectionLabel = this.connected ? 'PHONE CONNECTED' : 'PHONE OFFLINE'
       }
     })
     link.checkConnection()
   },
   onDestroy() {
     if (this.unsubscribeLink) this.unsubscribeLink()
-    audio.onplay = null
-    audio.onpause = null
-    audio.onstop = null
-    audio.onloadeddata = null
-    audio.onended = null
-    audio.onerror = null
   },
   retryConnection() {
     link.checkConnection()
   },
-  appendSearchKey(value) {
-    if (this.searchQuery.length < 60) this.searchQuery += value
-  },
-  keyA() { this.appendSearchKey('a') },
-  keyB() { this.appendSearchKey('b') },
-  keyC() { this.appendSearchKey('c') },
-  keyD() { this.appendSearchKey('d') },
-  keyE() { this.appendSearchKey('e') },
-  keyF() { this.appendSearchKey('f') },
-  keyG() { this.appendSearchKey('g') },
-  keyH() { this.appendSearchKey('h') },
-  keyI() { this.appendSearchKey('i') },
-  keyJ() { this.appendSearchKey('j') },
-  keyK() { this.appendSearchKey('k') },
-  keyL() { this.appendSearchKey('l') },
-  keyM() { this.appendSearchKey('m') },
-  keyN() { this.appendSearchKey('n') },
-  keyO() { this.appendSearchKey('o') },
-  keyP() { this.appendSearchKey('p') },
-  keyQ() { this.appendSearchKey('q') },
-  keyR() { this.appendSearchKey('r') },
-  keyS() { this.appendSearchKey('s') },
-  keyT() { this.appendSearchKey('t') },
-  keyU() { this.appendSearchKey('u') },
-  keyV() { this.appendSearchKey('v') },
-  keyW() { this.appendSearchKey('w') },
-  keyX() { this.appendSearchKey('x') },
-  keyY() { this.appendSearchKey('y') },
-  keyZ() { this.appendSearchKey('z') },
-  searchSpace() { this.appendSearchKey(' ') },
-  searchBackspace() { this.searchQuery = this.searchQuery.slice(0, -1) },
-  searchClear() { this.searchQuery = ''; this.videoResults = [] },
-  searchFromWatch() {
-    const query = this.searchQuery.trim()
-    if (!query) {
-      this.searchHint = 'Type something to search.'
-      return
-    }
-    if (!link.send('video.search', { query })) {
-      this.searchHint = 'Phone is not connected.'
-      return
-    }
-    this.searchHint = 'Searching on phone...'
-    this.videoResults = []
-  },
-  selectSearchResult(item) {
-    if (!item) return
-    this.videoTitle = item.title || 'Selected video'
-    this.videoSubtitle = item.channelTitle || ''
-    this.selectedVideoId = item.videoId || ''
-    this.selectedThumbnailUrl = item.thumbnailUrl || ''
-    this.thumbnailFailed = !this.selectedThumbnailUrl
-    this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL.'
-    this.selectedLikeCount = item.likeCount || '—'
-    this.selectedCommentCount = item.commentCount || '—'
-    if (!link.send('video.select', item)) this.searchHint = 'Phone is not connected.'
-    else this.searchHint = 'Video selected.'
-  },
-  selectVideo(videoId, title, channelTitle, thumbnailUrl, likeCount, commentCount) {
-    const payload = { videoId, title, channelTitle, thumbnailUrl }
-    if (!link.send('video.select', payload)) {
-      this.searchHint = 'Not connected'
-      return
-    }
-    this.videoTitle = title || 'Video selected'
-    this.videoSubtitle = channelTitle || 'Selected on watch'
-    this.selectedVideoId = videoId || ''
-    this.selectedThumbnailUrl = thumbnailUrl || ''
-    this.thumbnailFailed = !this.selectedThumbnailUrl
-    this.thumbnailMessage = this.selectedThumbnailUrl ? 'Loading cover...' : 'No cover URL was provided.'
-    this.selectedLikeCount = likeCount || '—'
-    this.selectedCommentCount = commentCount || '—'
-    this.searchHint = 'Video sent to phone app.'
-  },
-  thumbnailLoaded() {
-    this.thumbnailFailed = false
-    this.thumbnailMessage = 'Cover loaded.'
-  },
   thumbnailError() {
     this.thumbnailFailed = true
-    this.thumbnailMessage = 'Cover could not load. Check watch internet access.'
-    this.searchHint = 'The video cover could not be downloaded.'
-  },
-
-  finishAudioFileIfReady() {
-    if (!this.pendingAudioFinished || this.pendingAudioWriting ||
-        this.pendingAudioWritten !== this.pendingAudioTotal || this.pendingAudioTotal <= 0) return
-    try {
-      audio.pause()
-      audio.src = this.pendingAudioUri
-      audio.meta = { title: this.pendingAudioName, artist: 'Local file', album: 'YouTube Mini' }
-      audio.autoplay = false
-      this.audioSource = this.pendingAudioUri
-      this.audioStatus = 'FILE READY. PRESS PLAY.'
-      link.send('audio.file.complete', { id: this.pendingAudioId })
-    } catch (error) {
-      this.audioStatus = 'COULD NOT OPEN LOCAL AUDIO FILE.'
-      link.send('audio.file.error', { id: this.pendingAudioId, message: 'Audio source could not be opened.' })
-    }
-  },
-  playAudio() {
-    if (!this.audioSource) {
-      this.audioStatus = 'Send a direct audio URL from the phone app first.'
-      return
-    }
-    try {
-      audio.play()
-      this.audioStatus = 'STARTING AUDIO...'
-    } catch (error) {
-      this.audioStatus = 'PLAY FAILED. CHECK THE AUDIO URL.'
-    }
-  },
-  pauseAudio() {
-    if (!this.audioSource) {
-      this.audioStatus = 'No audio source received yet.'
-      return
-    }
-    try { audio.pause() } catch (error) { this.audioStatus = 'PAUSE FAILED.' }
-  },
-  stopAudio() {
-    if (!this.audioSource) {
-      this.audioStatus = 'No audio source received yet.'
-      return
-    }
-    try { audio.stop() } catch (error) { this.audioStatus = 'STOP FAILED.' }
-  },
-  decodeBase64(value) {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    const clean = value.replace(/[^A-Za-z0-9+/=]/g, '')
-    const out = []
-    let buffer = 0
-    let bits = 0
-    for (let i = 0; i < clean.length; i++) {
-      if (clean[i] === '=') break
-      const n = alphabet.indexOf(clean[i])
-      if (n < 0) continue
-      buffer = (buffer << 6) | n
-      bits += 6
-      if (bits >= 8) {
-        bits -= 8
-        out.push((buffer >> bits) & 255)
-      }
-    }
-    return new Uint8Array(out)
-  },
-  loadComments() {
-    if (!this.selectedVideoId) {
-      this.commentsText = 'Select a video first.'
-      return
-    }
-    if (!link.send('comments.load', { videoId: this.selectedVideoId })) {
-      this.commentsText = 'Phone is not connected.'
-    } else {
-      this.commentsText = 'Loading public comments...'
-    }
   },
   openVideoOnPhone() {
-    if (!this.selectedVideoId) {
-      this.searchHint = 'Select a video first.'
-      return
-    }
-    if (!link.send('video.open', { videoId: this.selectedVideoId })) {
-      this.searchHint = 'Phone is not connected.'
-    } else {
-      this.searchHint = 'Opening video on phone...'
-    }
-  },
+    if (!this.selectedVideoId) return
+    link.send('video.open', { videoId: this.selectedVideoId })
+  }
 }
 </script>

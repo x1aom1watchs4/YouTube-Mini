@@ -6,6 +6,7 @@ A Xiaomi Watch S4 (Vela) + Android companion prototype.
 
 - Vela watch UI with a connection indicator, Shorts-style metadata viewer, previous/next navigation, and swipe navigation.
 - A clearly labelled frame-animation test using four local PNG images. This demonstrates image animation only; it is not video playback.
+- An experimental `VIDEO TEST` page using a CC0 sample MP4 to check whether the watch firmware supports the generic `<video>` element; physical playback is not yet verified.
 - Watch-to-phone communication through Xiaomi Vela `@system.interconnect` and the Android XMS Wearable `NodeApi` / `MessageApi`.
 - Android companion search using YouTube Data API v3.
 - Video metadata, thumbnails, public comment loading, like/comment statistics, and opening the selected YouTube Short on the phone.
@@ -29,7 +30,7 @@ The Android `applicationId` and Vela manifest `package` must match exactly. Both
 
 The YouTube Data API provides search metadata and statistics, not the underlying video stream. This project does not extract, proxy, or relay YouTube media streams.
 
-The official Vela JS interface catalogue documents an audio feature, but the currently reviewed Vela documentation does not establish a supported Quick App video-player component for Watch S4. A video component documented for other Quick App environments is not evidence that it is available on Vela or on this watch. Therefore direct playback of an authorized local video on Watch S4 remains unverified and must be tested on-device before being advertised as supported.
+The watch app now includes an experimental `VIDEO TEST` screen. It tests the generic Vela `<video>` element with an externally hosted CC0 sample clip; the element passes the project's CI lint and packaging checks, but playback on a physical Watch S4 is not yet verified. The reviewed official Vela interface catalogue documents audio playback but does not document a Quick App video-player API for Watch S4. This experiment is a capability probe, not a claim that watch-side video works.
 
 Public comments are read-only through the current API-key flow. Posting comments or registering a like would require an appropriately authorized YouTube OAuth flow and is not implemented.
 

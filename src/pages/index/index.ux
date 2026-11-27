@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <div class="topbar"><text class="logo">SHORTS</text><text class="test-toggle" @click="toggleAnimationTest">FRAME TEST</text><text class="connection">{{connected ? '●' : '○'}}</text></div>
+    <div class="topbar"><text class="logo">SHORTS</text><text class="video-test-toggle" @click="openVideoTest">VIDEO TEST</text><text class="test-toggle" @click="toggleAnimationTest">FRAME TEST</text><text class="connection">{{connected ? '●' : '○'}}</text></div>
     <div class="viewer" @swipe="handleSwipe">
       <image if="{{currentThumbnail && !animationTestVisible}}" class="poster" src="{{currentThumbnail}}" />
       <div if="{{!currentThumbnail && !animationTestVisible}}" class="poster-empty">
@@ -45,6 +45,7 @@
 .logo { color: #ffffff; font-size: 15px; font-weight: bold; }
 .connection { color: #ff3154; font-size: 12px; }
 .test-toggle { color: #8fcaff; font-size: 8px; }
+.video-test-toggle { color: #ffca65; font-size: 8px; }
 .frame-animator { position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; }
 .animator-hidden { opacity: 0; }
 .animator-visible { opacity: 1; }
@@ -82,6 +83,7 @@
 </style>
 <script>
 import link from '../../common/scripts/interconnect'
+import router from '@system.router'
 export default {
   private: {
     connected: false, videoList: [], videoIndex: 0, currentThumbnail: '',
@@ -158,6 +160,7 @@ export default {
   stopAnimation() { this.$element('animator').stop() },
   showComments() { if (this.selectedVideoId) this.commentsVisible = true },
   hideComments() { this.commentsVisible = false },
+  openVideoTest() { router.push({ uri: '/pages/video-probe' }) },
   openVideoOnPhone() { if (this.selectedVideoId) link.send('video.open', { videoId: this.selectedVideoId }) }
 }
 </script>

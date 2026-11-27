@@ -522,7 +522,7 @@ public final class MainActivity extends Activity {
                                     runOnUiThread(() -> status.setText(
                                         "Запрос отправлен. Подтверди разрешение в Notify for Xiaomi, если появится"
                                     ));
-                                    launchWatchApp(nodeId);
+                                    // Keep the watch app closed; phone-side actions must stay on the phone.
                                 })
                                 .addOnFailureListener(error -> runOnUiThread(() ->
                                     status.setText("Не удалось запросить разрешение: " + safe(error))
@@ -893,6 +893,7 @@ public final class MainActivity extends Activity {
             Button result = new Button(this);
             result.setText(title + (channel.isEmpty() ? "" : "\n" + channel)
                 + "\n♥ " + likes + "   ·   Комментарии: " + comments);
+            result.setTextColor(android.graphics.Color.rgb(30, 30, 30));
             result.setOnClickListener(v -> {
                 videoId.setText(selectedId);
                 videoTitle.setText(title);

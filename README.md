@@ -5,8 +5,6 @@ A Xiaomi Watch S4 (Vela) + Android companion prototype.
 ## Current implementation
 
 - Vela watch UI with a connection indicator, Shorts-style metadata viewer, previous/next navigation, and swipe navigation.
-- A clearly labelled frame-animation test using four local PNG images. This demonstrates image animation only; it is not video playback.
-- An experimental `VIDEO TEST` page using a CC0 sample MP4 to check whether the watch firmware supports the generic `<video>` element; physical playback is not yet verified.
 - Watch-to-phone communication through Xiaomi Vela `@system.interconnect` and the Android XMS Wearable `NodeApi` / `MessageApi`.
 - Android companion search using YouTube Data API v3.
 - Video metadata, thumbnails, public comment loading, like/comment statistics, and opening the selected YouTube Short on the phone.
@@ -26,11 +24,11 @@ The Android `applicationId` and Vela manifest `package` must match exactly. Both
 
 ## Video playback status
 
-**Actual YouTube video playback is not implemented on the watch.** The watch currently displays a thumbnail and metadata; the separate frame test animates local PNG images. The `OPEN` action asks the Android companion to open the selected YouTube Short in the phone's YouTube app or browser.
+**Actual YouTube video playback is not implemented on the watch.** The watch displays a thumbnail and metadata. No video playback or frame-animation test is presented as video. The `OPEN` action asks the Android companion to open the selected YouTube Short in the phone's YouTube app or browser.
 
 The YouTube Data API provides search metadata and statistics, not the underlying video stream. This project does not extract, proxy, or relay YouTube media streams.
 
-The watch app now includes an experimental `VIDEO TEST` screen. It tests the generic Vela `<video>` element with an externally hosted CC0 sample clip; the element passes the project's CI lint and packaging checks, but playback on a physical Watch S4 is not yet verified. The reviewed official Vela interface catalogue documents audio playback but does not document a Quick App video-player API for Watch S4. This experiment is a capability probe, not a claim that watch-side video works.
+The reviewed Vela Quick App component catalogue does not provide a documented video-player component, and `@system.audio` is an audio API. The Vela file/network APIs can store an MP4 but do not decode or render it. OpenVela does contain a native C Media Framework with FFmpeg-based video processing and a video-output path; however, the reviewed Feature Framework configuration does not expose a `system.video` Quick App binding. Using that native framework would require firmware/native-app integration and a display output path, not just an RPK update. The research and source links are recorded in [the video playback investigation](docs/video-playback-research.ru.md).
 
 Public comments are read-only through the current API-key flow. Posting comments or registering a like would require an appropriately authorized YouTube OAuth flow and is not implemented.
 
@@ -42,9 +40,11 @@ GitHub Actions run [46042147802](https://github.com/x1aom1watchs4/YouTube-Mini/a
 
 The workflow published debug and release artifacts for both apps. Successful packaging is not the same as a physical-device installation or playback test; those still need to be performed on the paired phone and Watch S4.
 
+## Video playback conclusion
+
+For standard Watch S4 M2425W1, no supported public video-playback API for Vela Quick Apps was found. The native OpenVela Media Framework is a possible firmware-level research route, but it is not callable from the current RPK without a vendor/system bridge. See [the full investigation](docs/video-playback-research.ru.md).
+
 ## Next milestones
 
 1. Install the latest APK and RPK on the paired phone and Watch S4; verify search, selection, comments, and phone handoff.
-2. Check the frame animation's responsiveness and resource use on the physical watch.
-3. Continue investigating documented Vela media capabilities and device-specific native support for local video.
-4. Only implement watch-side playback if a supported playback path is confirmed; then test decoding, buffering, controls, and battery impact on-device.
+2. Keep watch-side video marked as unsupported unless Xiaomi exposes a supported Vela video API or a working native bridge is built and tested on the physical M2425W1.

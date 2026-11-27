@@ -33,7 +33,11 @@ Receivers must ignore unknown message types and unsupported protocol versions. V
 | `video.results` | phone → watch | Return up to 10 result metadata records |
 | `video.search.error` | phone → watch | Return a safe search error |
 | `video.select` | both | Send selected video ID, title, channel and thumbnail URL; never send media bytes |
-| `playback.command` | both | Send `play`, `pause`, or `seek` command |
+| `playback.command` | both | Send `play`, `pause`, `seek`, or `stop` command |
+| `video.stream.start` | phone → watch | Start a local-file frame stream |
+| `video.stream.frame` | phone → watch | Deliver one compressed JPEG frame |
+| `video.stream.end` | phone → watch | End the current frame stream |
+| `video.stream.error` | phone → watch | Report a frame-stream error |
 
 ## Search payload
 
@@ -56,7 +60,7 @@ The `hello`, `ping`/`pong`, playback-state, and generic error messages are reser
 
 ## Playback constraints
 
-The protocol only transports metadata and control messages. It does not download, proxy, extract, or relay YouTube media streams. A supported playback surface and permitted playback integration must be verified on the actual watch before enabling playback controls.
+For local video playback, Android decodes a user-selected file with MediaMetadataRetriever and sends bounded JPEG frames. The watch writes alternating frame files using `@system.file.writeArrayBuffer` and displays them with the Vela image component. This is frame streaming, not MP4 decoding on the watch. YouTube streams are never extracted, proxied, or relayed.
 
 ## Implementation gate
 

@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.media.MediaMetadataRetriever;
 import android.util.Base64;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -75,6 +76,18 @@ public final class MainActivity extends Activity {
     private EditText audioUrl;
     private Uri selectedAudioUri;
     private String selectedAudioName = "";
+    private Uri selectedVideoUri;
+    private String selectedVideoName = "";
+    private volatile boolean localVideoStreamActive;
+    private volatile boolean localVideoStreamPaused;
+    private MediaMetadataRetriever localVideoRetriever;
+    private volatile long localVideoDurationMs;
+    private volatile long localVideoPositionMs;
+    private volatile int localVideoGeneration;
+    private int localVideoFrameNumber;
+    private String localVideoNodeId = "";
+    private static final int VIDEO_FRAME_INTERVAL_MS = 250;
+    private static final int VIDEO_FRAME_MAX_BYTES = 6500;
     private static final int AUDIO_CHUNK_BYTES = 5000;
     private static final int MAX_AUDIO_BYTES = 8 * 1024 * 1024;
     private byte[] pendingAudioBytes;
@@ -141,10 +154,7 @@ public final class MainActivity extends Activity {
                             });
                         }
                     } else if ("playback.command".equals(type)) {
-                        final String action = payload.optString("action", "unknown");
-                        runOnUiThread(() ->
-                            playbackStatus.setText("Команда с часов: " + action + " (плеер пока не подключён)")
-                        );
+                        handlePlaybackCommand(payload);
                     } else if ("video.select".equals(type)) {
                         final String title = payload.optString("title", "Видео выбрано на часах");
                         final String id = payload.optString("videoId", "");
@@ -304,6 +314,21 @@ public final class MainActivity extends Activity {
         send.setOnClickListener(v -> sendSelectedVideo());
         root.addView(send);
 
+        Button chooseVideo = new Button(this);
+        chooseVideo.setText("CHOOSE LOCAL VIDEO");
+        chooseVideo.setOnClickListener(v -> chooseVideoFile());
+        root.addView(chooseVideo);
+
+        Button playVideo = new Button(this);
+        playVideo.setText("PLAY VIDEO ON WATCH");
+        playVideo.setOnClickListener(v -> startLocalVideoStream());
+        root.addView(playVideo);
+
+        Button stopVideo = new Button(this);
+        stopVideo.setText("STOP WATCH VIDEO");
+        stopVideo.setOnClickListener(v -> stopLocalVideoStream());
+        root.addView(stopVideo);
+
         playbackStatus = new TextView(this);
         playbackStatus.setTextColor(android.graphics.Color.rgb(55, 55, 55));
         playbackStatus.setText("Choose a result, then tap it on the watch to load comments.");
@@ -319,10 +344,30 @@ public final class MainActivity extends Activity {
         startActivityForResult(intent, 4107);
     }
 
+    private void chooseVideoFile() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("video/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, 4108);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != 4107 || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        if (requestCode == 4108) {
+            selectedVideoUri = data.getData();
+            try {
+                getContentResolver().takePersistableUriPermission(
+                    selectedVideoUri, data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception ignored) {}
+            selectedVideoName = queryAudioName(selectedVideoUri);
+            if ("audio-file".equals(selectedVideoName)) selectedVideoName = "Local video";
+            playbackStatus.setText("Selected video: " + selectedVideoName);
+            return;
+        }
+        if (requestCode != 4107) return;
         selectedAudioUri = data.getData();
         selectedAudioName = queryAudioName(selectedAudioUri);
         playbackStatus.setText("Selected: " + selectedAudioName);
@@ -416,6 +461,193 @@ public final class MainActivity extends Activity {
                     playbackStatus.setText("Audio transfer failed: " + safe(error))));
         } catch (Exception error) {
             runOnUiThread(() -> playbackStatus.setText("Audio transfer error: " + safe(error)));
+        }
+    }
+
+    private void startLocalVideoStream() {
+        final Uri source = selectedVideoUri;
+        final Node node = activeNode;
+        if (source == null) {
+            playbackStatus.setText("Сначала выбери локальный видеофайл.");
+            return;
+        }
+        if (node == null) {
+            playbackStatus.setText("Часы не подключены.");
+            return;
+        }
+        localVideoStreamActive = false;
+        localVideoGeneration++;
+        io.execute(() -> {
+            releaseLocalVideoRetriever();
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(getApplicationContext(), source);
+                String durationValue = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                long duration = durationValue == null ? 0L : Long.parseLong(durationValue);
+                if (duration <= 0L) throw new IllegalStateException("Не удалось прочитать длительность видео.");
+                localVideoRetriever = retriever;
+                localVideoNodeId = node.id;
+                localVideoDurationMs = duration;
+                localVideoPositionMs = 0L;
+                localVideoFrameNumber = 0;
+                localVideoStreamPaused = false;
+                localVideoStreamActive = true;
+                final int generation = ++localVideoGeneration;
+                JSONObject payload = new JSONObject();
+                put(payload, "title", selectedVideoName.isEmpty() ? "Local video" : selectedVideoName);
+                put(payload, "durationMs", duration);
+                sendVideoTransportMessage(node.id, "video.stream.start", payload,
+                    () -> io.execute(() -> pumpLocalVideoFrame(generation)));
+            } catch (Exception error) {
+                try { retriever.release(); } catch (Exception ignored) {}
+                localVideoStreamActive = false;
+                runOnUiThread(() -> playbackStatus.setText("Не удалось открыть видео: " + safe(error)));
+            }
+        });
+    }
+
+    private void handlePlaybackCommand(JSONObject payload) {
+        String action = payload.optString("action", "");
+        if ("pause".equals(action)) {
+            localVideoStreamPaused = true;
+            runOnUiThread(() -> playbackStatus.setText("Видео на часах: пауза"));
+        } else if ("play".equals(action)) {
+            if (!localVideoStreamActive) return;
+            localVideoStreamPaused = false;
+            final int generation = localVideoGeneration;
+            io.execute(() -> pumpLocalVideoFrame(generation));
+            runOnUiThread(() -> playbackStatus.setText("Видео на часах: воспроизведение"));
+        } else if ("stop".equals(action)) {
+            stopLocalVideoStream();
+        } else if ("seek".equals(action) && localVideoStreamActive) {
+            final long requested = Math.max(0L, payload.optLong("seconds", 0L) * 1000L);
+            io.execute(() -> {
+                localVideoPositionMs = Math.min(requested, Math.max(0L, localVideoDurationMs - 1L));
+                final int generation = ++localVideoGeneration;
+                if (!localVideoStreamPaused) pumpLocalVideoFrame(generation);
+            });
+        }
+    }
+
+    private void pumpLocalVideoFrame(int generation) {
+        if (!localVideoStreamActive || localVideoStreamPaused ||
+            generation != localVideoGeneration || localVideoRetriever == null) return;
+        if (localVideoPositionMs >= localVideoDurationMs) {
+            localVideoStreamActive = false;
+            sendVideoTransportMessage(localVideoNodeId, "video.stream.end", new JSONObject(), null);
+            releaseLocalVideoRetriever();
+            runOnUiThread(() -> playbackStatus.setText("Видео завершено."));
+            return;
+        }
+        try {
+            Bitmap source = localVideoRetriever.getFrameAtTime(
+                localVideoPositionMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST);
+            if (source == null) {
+                localVideoPositionMs += VIDEO_FRAME_INTERVAL_MS;
+                mainHandler.postDelayed(() -> io.execute(() -> pumpLocalVideoFrame(generation)),
+                    VIDEO_FRAME_INTERVAL_MS);
+                return;
+            }
+            byte[] jpeg = encodeWatchFrame(source);
+            JSONObject payload = new JSONObject();
+            put(payload, "sequence", localVideoFrameNumber++);
+            put(payload, "positionMs", localVideoPositionMs);
+            put(payload, "data", Base64.encodeToString(jpeg, Base64.NO_WRAP));
+            final long nextPosition = localVideoPositionMs + VIDEO_FRAME_INTERVAL_MS;
+            sendVideoTransportMessage(localVideoNodeId, "video.stream.frame", payload, () -> {
+                if (!localVideoStreamActive || localVideoStreamPaused || generation != localVideoGeneration) return;
+                localVideoPositionMs = nextPosition;
+                if (localVideoFrameNumber % 12 == 0) {
+                    runOnUiThread(() -> playbackStatus.setText(
+                        "Видео передаётся на часы: " + localVideoFrameNumber + " кадров"));
+                }
+                mainHandler.postDelayed(() -> io.execute(() -> pumpLocalVideoFrame(generation)),
+                    VIDEO_FRAME_INTERVAL_MS);
+            });
+        } catch (Exception error) {
+            localVideoStreamActive = false;
+            final String message = safe(error);
+            JSONObject failure = new JSONObject();
+            put(failure, "message", message);
+            sendVideoTransportMessage(localVideoNodeId, "video.stream.error", failure, null);
+            releaseLocalVideoRetriever();
+            runOnUiThread(() -> playbackStatus.setText("Ошибка видео: " + message));
+        }
+    }
+
+    private byte[] encodeWatchFrame(Bitmap source) throws Exception {
+        byte[] result;
+        Bitmap scaled = null;
+        try {
+            float scale = Math.min(144f / source.getWidth(), 256f / source.getHeight());
+            int width = Math.max(1, Math.round(source.getWidth() * scale));
+            int height = Math.max(1, Math.round(source.getHeight() * scale));
+            scaled = Bitmap.createScaledBitmap(source, width, height, true);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            scaled.compress(Bitmap.CompressFormat.JPEG, 40, output);
+            result = output.toByteArray();
+            if (result.length > VIDEO_FRAME_MAX_BYTES) {
+                if (scaled != source) scaled.recycle();
+                scaled = null;
+                float smallerScale = Math.min(112f / source.getWidth(), 199f / source.getHeight());
+                int smallerWidth = Math.max(1, Math.round(source.getWidth() * smallerScale));
+                int smallerHeight = Math.max(1, Math.round(source.getHeight() * smallerScale));
+                scaled = Bitmap.createScaledBitmap(source, smallerWidth, smallerHeight, true);
+                output.reset();
+                scaled.compress(Bitmap.CompressFormat.JPEG, 28, output);
+                result = output.toByteArray();
+            }
+        } finally {
+            if (scaled != null && scaled != source) scaled.recycle();
+            source.recycle();
+        }
+        if (result.length > VIDEO_FRAME_MAX_BYTES) {
+            throw new IllegalStateException("Кадр превышает лимит передачи.");
+        }
+        return result;
+    }
+
+    private void sendVideoTransportMessage(String nodeId, String type, JSONObject payload, Runnable success) {
+        if (nodeId == null || nodeId.isEmpty() || messageApi == null) return;
+        try {
+            JSONObject frame = new JSONObject();
+            frame.put("v", 1);
+            frame.put("type", type);
+            frame.put("payload", payload);
+            byte[] bytes = frame.toString().getBytes(StandardCharsets.UTF_8);
+            if (bytes.length > 16 * 1024) throw new IllegalStateException("Video frame message is too large.");
+            messageApi.sendMessage(nodeId, bytes)
+                .addOnSuccessListener(unused -> { if (success != null) success.run(); })
+                .addOnFailureListener(error -> {
+                    localVideoStreamActive = false;
+                    io.execute(this::releaseLocalVideoRetriever);
+                    runOnUiThread(() -> playbackStatus.setText("Передача видео остановлена: " + safe(error)));
+                });
+        } catch (Exception error) {
+            localVideoStreamActive = false;
+            io.execute(this::releaseLocalVideoRetriever);
+            runOnUiThread(() -> playbackStatus.setText("Ошибка передачи видео: " + safe(error)));
+        }
+    }
+
+    private void stopLocalVideoStream() {
+        boolean wasActive = localVideoStreamActive;
+        String nodeId = localVideoNodeId;
+        localVideoStreamActive = false;
+        localVideoStreamPaused = false;
+        localVideoGeneration++;
+        if (wasActive && !nodeId.isEmpty()) {
+            sendVideoTransportMessage(nodeId, "video.stream.end", new JSONObject(), null);
+        }
+        io.execute(this::releaseLocalVideoRetriever);
+        runOnUiThread(() -> playbackStatus.setText("Видео остановлено."));
+    }
+
+    private void releaseLocalVideoRetriever() {
+        MediaMetadataRetriever retriever = localVideoRetriever;
+        localVideoRetriever = null;
+        if (retriever != null) {
+            try { retriever.release(); } catch (Exception ignored) {}
         }
     }
 

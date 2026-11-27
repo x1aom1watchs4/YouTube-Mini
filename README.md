@@ -8,6 +8,7 @@ A Xiaomi Watch S4 (Vela) + Android companion prototype.
 - Watch-to-phone communication through Xiaomi Vela `@system.interconnect` and the Android XMS Wearable `NodeApi` / `MessageApi`.
 - Android companion search using YouTube Data API v3.
 - Video metadata, thumbnails, public comment loading, like/comment statistics, and opening the selected YouTube Short on the phone.
+- Playback of user-selected local video files on the watch by phone-side decoding and XMS JPEG frame streaming.
 - The API key is saved in the app's local Android SharedPreferences so it survives app restarts. It is not committed to this repository; SharedPreferences should not be treated as encrypted secret storage.
 
 ## Platform communication
@@ -24,7 +25,7 @@ The Android `applicationId` and Vela manifest `package` must match exactly. Both
 
 ## Video playback status
 
-**Actual YouTube video playback is not implemented on the watch.** The watch displays a thumbnail and metadata. No video playback or frame-animation test is presented as video. The `OPEN` action asks the Android companion to open the selected YouTube Short in the phone's YouTube app or browser.
+**Local video playback on the watch is implemented through phone-decoded frame streaming.** Choose a local video file in the Android companion and tap `PLAY VIDEO ON WATCH`; Android decodes it and the watch renders the received JPEG frames. This is moving video displayed on the watch, but not native MP4 decoding by the watch. YouTube Shorts still open through the official YouTube app on the phone; the app does not extract or relay YouTube streams.
 
 The YouTube Data API provides search metadata and statistics, not the underlying video stream. This project does not extract, proxy, or relay YouTube media streams.
 

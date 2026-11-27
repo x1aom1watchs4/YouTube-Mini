@@ -2,15 +2,16 @@
   <div class="page">
     <div class="topbar"><text class="logo">SHORTS</text><text class="connection">{{connected ? '●' : '○'}}</text></div>
     <div class="viewer" @swipe="handleSwipe">
-      <image if="{{currentThumbnail}}" class="poster" src="{{currentThumbnail}}" />
-      <div if="{{!currentThumbnail}}" class="poster-empty">
+      <image if="{{currentFrameSource}}" class="poster" src="{{currentFrameSource}}" />
+      <image if="{{!currentFrameSource && currentThumbnail}}" class="poster" src="{{currentThumbnail}}" />
+      <div if="{{!currentThumbnail && !currentFrameSource}}" class="poster-empty">
         <text class="empty-icon">▶</text><text class="empty-title">NO SHORT SELECTED</text><text class="empty-sub">Search on your phone</text>
       </div>
             <div class="shade"></div>
       <div class="video-info">
         <text class="channel">{{currentChannel}}</text>
         <text class="video-title">{{currentTitle}}</text>
-        <text class="playback-note">WATCH PREVIEW • OPEN VIDEO ON PHONE</text>
+        <text class="playback-note">{{streamActive ? 'LIVE VIDEO • PHONE DECODE' : 'SHORTS PREVIEW'}}</text>
       </div>
       <div class="actions">
         <div class="action" @click="showComments"><text class="action-icon">▤</text><text class="action-count">{{currentCommentCount}}</text></div>
@@ -18,7 +19,7 @@
         <div class="action" @click="openVideoOnPhone"><text class="action-icon">↗</text><text class="action-label">OPEN</text></div>
       </div>
       <div class="bottom-controls">
-        <text class="nav-button" @click="previousVideo">‹ PREV</text><text class="position">{{videoPosition}}</text><text class="nav-button" @click="nextVideo">NEXT ›</text>
+        <text class="nav-button" @click="previousVideo">‹ PREV</text><text class="nav-button" @click="togglePlayback">{{playing ? 'Ⅱ PAUSE' : '▶ PLAY'}}</text><text class="nav-button" @click="nextVideo">NEXT ›</text>
       </div>
     </div>
     <div if="{{commentsVisible}}" class="comments-panel">
@@ -66,16 +67,40 @@
 </style>
 <script>
 import link from '../../common/scripts/interconnect'
+import file from '@system.file'
 export default {
   private: {
     connected: false, videoList: [], videoIndex: 0, currentThumbnail: '',
     currentTitle: 'Find Shorts on your phone', currentChannel: 'YOUTUBE MINI',
     currentLikeCount: '—', currentCommentCount: '—', videoPosition: '0 / 0',
     selectedVideoId: '', commentList: [], commentsLabel: 'Select a Short to load comments',
-    commentsVisible: false
+    commentsVisible: false, currentFrameSource: '', streamActive: false,
+    playing: false, frameBufferIndex: 0
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
+      if (event.message && event.message.type === 'video.stream.start') {
+        const payload = event.message.payload || {}
+        this.streamActive = true
+        this.playing = true
+        this.frameBufferIndex = 0
+        this.currentFrameSource = ''
+        if (payload.title) this.currentTitle = payload.title
+      }
+      if (event.message && event.message.type === 'video.stream.frame') {
+        const payload = event.message.payload || {}
+        if (payload.data) this.renderVideoFrame(payload.data)
+      }
+      if (event.message && event.message.type === 'video.stream.end') {
+        this.streamActive = false
+        this.playing = false
+      }
+      if (event.message && event.message.type === 'video.stream.error') {
+        const payload = event.message.payload || {}
+        this.streamActive = false
+        this.playing = false
+        this.currentTitle = payload.message || 'Video transfer failed'
+      }
       if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
         this.videoList = Array.isArray(payload.items) ? payload.items : []
@@ -97,7 +122,48 @@ export default {
     link.checkConnection()
   },
   onDestroy() { if (this.unsubscribeLink) this.unsubscribeLink() },
+  renderVideoFrame(encoded) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    const clean = String(encoded).replace(/[^A-Za-z0-9+/=]/g, '')
+    const padding = clean.endsWith('==') ? 2 : (clean.endsWith('=') ? 1 : 0)
+    const bytes = new Uint8Array(Math.max(0, Math.floor(clean.length * 3 / 4) - padding))
+    let out = 0
+    for (let i = 0; i + 3 < clean.length; i += 4) {
+      const a = alphabet.indexOf(clean.charAt(i))
+      const b = alphabet.indexOf(clean.charAt(i + 1))
+      const c = clean.charAt(i + 2) === '=' ? 0 : alphabet.indexOf(clean.charAt(i + 2))
+      const d = clean.charAt(i + 3) === '=' ? 0 : alphabet.indexOf(clean.charAt(i + 3))
+      const value = (a << 18) | (b << 12) | (c << 6) | d
+      if (out < bytes.length) bytes[out++] = (value >> 16) & 255
+      if (out < bytes.length) bytes[out++] = (value >> 8) & 255
+      if (out < bytes.length) bytes[out++] = value & 255
+    }
+    const uri = this.frameBufferIndex % 2 === 0
+      ? 'internal://cache/ytm-video-frame-a.jpg'
+      : 'internal://cache/ytm-video-frame-b.jpg'
+    file.writeArrayBuffer({
+      uri,
+      buffer: bytes,
+      success: () => {
+        this.currentFrameSource = uri
+        this.frameBufferIndex += 1
+      },
+      fail: (error, code) => {
+        this.streamActive = false
+        this.playing = false
+        console.error('Video frame write failed', error, code)
+      }
+    })
+  },
+  togglePlayback() {
+    if (!this.streamActive) return
+    this.playing = !this.playing
+    link.send('playback.command', { action: this.playing ? 'play' : 'pause' })
+  },
   showCurrentVideo() {
+    this.currentFrameSource = ''
+    this.streamActive = false
+    this.playing = false
     const item = this.videoList[this.videoIndex]
     if (!item) {
       this.currentThumbnail = ''; this.currentTitle = 'Search Shorts on your phone'

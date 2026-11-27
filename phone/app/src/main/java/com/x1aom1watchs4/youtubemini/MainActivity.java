@@ -129,7 +129,7 @@ public final class MainActivity extends Activity {
                             runOnUiThread(() -> {
                                 try {
                                     Intent intent = new Intent(Intent.ACTION_VIEW,
-                                        Uri.parse("https://www.youtube.com/watch?v=" + Uri.encode(id)));
+                                        Uri.parse("https://www.youtube.com/shorts/" + Uri.encode(id)));
                                     startActivity(intent);
                                     playbackStatus.setText("Открываем видео в YouTube");
                                 } catch (Exception error) {
@@ -774,9 +774,13 @@ public final class MainActivity extends Activity {
     private JSONArray fetchVideoResults(String query, String key) throws Exception {
         HttpURLConnection connection = null;
         try {
+            String searchTerms = query.trim();
+            if (!searchTerms.toLowerCase(java.util.Locale.US).contains("#shorts")) {
+                searchTerms += " #Shorts";
+            }
             String address = "https://www.googleapis.com/youtube/v3/search"
                 + "?part=snippet&type=video&videoDuration=short&maxResults=10"
-                + "&q=" + URLEncoder.encode(query, "UTF-8")
+                + "&q=" + URLEncoder.encode(searchTerms, "UTF-8")
                 + "&key=" + URLEncoder.encode(key, "UTF-8");
             connection = (HttpURLConnection) new URL(address).openConnection();
             connection.setConnectTimeout(8000);

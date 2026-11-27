@@ -1,152 +1,127 @@
 <template>
   <div class="page">
-    <div class="top">
-      <text class="brand">SHORTS</text>
-      <text class="anim-link" @click="toggleAnimationTest">{{showAnimationTest ? 'BACK' : 'ANIM TEST'}}</text>
-      <text class="state">{{connected ? '●' : '○'}}</text>
-    </div>
-    <div if="{{!showAnimationTest}}" class="content">
-      <text class="section">FEED</text>
-      <list class="feed" bounces="true">
-        <list-item for="{{videoList}}" tid="videoId" class="video" type="video" @click="selectResult($item)">
-          <text class="video-title">{{$item.title}}</text>
-          <text class="meta">{{$item.channelTitle}}</text>
-          <text class="stats">♥ {{$item.likeCount}}   COMMENTS {{$item.commentCount}}</text>
-        </list-item>
-      </list>
-      <text if="{{videoList.length === 0}}" class="empty">SEARCH ON PHONE</text>
-      <div class="comments-head">
-        <text class="section">COMMENTS</text>
-        <text class="meta">{{commentsLabel}}</text>
+    <div class="topbar"><text class="logo">SHORTS</text><text class="connection">{{connected ? '●' : '○'}}</text></div>
+    <div class="viewer">
+      <image if="{{currentThumbnail}}" class="poster" src="{{currentThumbnail}}" />
+      <div if="{{!currentThumbnail}}" class="poster-empty">
+        <text class="empty-icon">▶</text><text class="empty-title">NO SHORT SELECTED</text><text class="empty-sub">Search on your phone</text>
       </div>
-      <list class="comments" bounces="true">
-        <list-item for="{{commentList}}" tid="index" class="comment" type="comment">
-          <text class="author">{{$item.author}}</text>
-          <text class="comment-text">{{$item.text}}</text>
-        </list-item>
-      </list>
-      <text if="{{commentList.length === 0}}" class="empty-comment">Tap a video to load comments</text>
-      <div class="bottom">
-        <text class="selected">{{selectedTitle}}</text>
-        <text class="open" @click="openVideoOnPhone">OPEN ON PHONE</text>
+      <div class="shade"></div>
+      <div class="video-info">
+        <text class="channel">{{currentChannel}}</text>
+        <text class="video-title">{{currentTitle}}</text>
+        <text class="playback-note">PREVIEW ONLY • VIDEO NOT PLAYING ON WATCH</text>
+      </div>
+      <div class="actions">
+        <div class="action" @click="showComments"><text class="action-icon">▤</text><text class="action-count">{{currentCommentCount}}</text></div>
+        <div class="action"><text class="action-icon">♥</text><text class="action-count">{{currentLikeCount}}</text></div>
+        <div class="action" @click="openVideoOnPhone"><text class="action-icon">↗</text><text class="action-label">OPEN</text></div>
+      </div>
+      <div class="bottom-controls">
+        <text class="nav-button" @click="previousVideo">‹ PREV</text><text class="position">{{videoPosition}}</text><text class="nav-button" @click="nextVideo">NEXT ›</text>
       </div>
     </div>
-    <div if="{{showAnimationTest}}" class="anim-test">
-      <text class="anim-title">FRAME ANIMATION TEST</text>
-      <image-animator class="animator" id="shortsAnimator" images="{{animationFrames}}" duration="900ms" iteration="infinite" />
-      <text class="anim-note">6 local PNG frames • no video or audio</text>
-      <div class="anim-controls">
-        <text class="anim-button" @click="startAnimation">START</text>
-        <text class="anim-button" @click="pauseAnimation">PAUSE</text>
-        <text class="anim-button" @click="resumeAnimation">RESUME</text>
-      </div>
-      <text class="anim-foot">This checks Vela frame animation on the watch</text>
+    <div if="{{commentsVisible}}" class="comments-panel">
+      <div class="comments-top"><text class="comments-title">COMMENTS</text><text class="close" @click="hideComments">CLOSE ×</text></div>
+      <list class="comments-list" bounces="true">
+        <list-item for="{{commentList}}" tid="index" class="comment"><text class="author">{{$item.author}}</text><text class="comment-text">{{$item.text}}</text></list-item>
+      </list>
+      <text if="{{commentList.length === 0}}" class="comments-empty">{{commentsLabel}}</text>
     </div>
   </div>
 </template>
 <style>
-.page { width: 100%; height: 100%; padding: 9px; background-color: #080808; flex-direction: column; }
-.top { height: 25px; flex-direction: row; justify-content: space-between; align-items: center; }
-.brand { color: #ffffff; font-size: 18px; font-weight: bold; }
-.state { color: #ff3154; font-size: 15px; }
-.anim-link { color: #ff6b82; font-size: 9px; font-weight: bold; }
-.content { width: 100%; flex: 1; flex-direction: column; }
-.section { color: #ff3154; font-size: 10px; font-weight: bold; margin-top: 3px; }
-.feed { width: 100%; height: 42%; margin-top: 3px; }
-.video { width: 100%; height: 48px; padding-left: 5px; padding-right: 5px; justify-content: center; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #303030; }
-.video-title { color: #ffffff; font-size: 11px; max-lines: 2; }
-.meta { color: #aaaaaa; font-size: 9px; margin-top: 2px; }
-.stats { color: #dddddd; font-size: 9px; margin-top: 2px; }
-.empty { color: #888888; font-size: 10px; text-align: center; margin-top: 8px; }
-.comments-head { flex-direction: row; justify-content: space-between; align-items: center; height: 18px; }
-.comments { width: 100%; flex: 1; }
-.comment { width: 100%; padding: 4px; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
-.author { color: #ff6b82; font-size: 9px; }
-.comment-text { color: #eeeeee; font-size: 10px; margin-top: 2px; }
-.empty-comment { color: #777777; font-size: 9px; text-align: center; margin-top: 5px; }
-.bottom { height: 35px; flex-direction: row; justify-content: space-between; align-items: center; }
-.selected { color: #dddddd; font-size: 9px; max-lines: 1; flex: 1; }
-.open { color: #ffffff; background-color: #e9003d; font-size: 9px; padding: 7px; border-radius: 6px; }
-.anim-test { width: 100%; flex: 1; flex-direction: column; align-items: center; justify-content: center; }
-.anim-title { color: #ffffff; font-size: 13px; font-weight: bold; margin-bottom: 8px; }
-.animator { width: 180px; height: 180px; }
-.anim-note { color: #aaaaaa; font-size: 9px; margin-top: 8px; }
-.anim-controls { width: 100%; flex-direction: row; justify-content: space-around; margin-top: 14px; }
-.anim-button { color: #ffffff; background-color: #e9003d; font-size: 10px; padding: 8px; border-radius: 6px; }
-.anim-foot { color: #777777; font-size: 8px; margin-top: 12px; }
+.page { width: 100%; height: 100%; background-color: #050505; flex-direction: column; }
+.topbar { height: 27px; padding-left: 12px; padding-right: 12px; flex-direction: row; justify-content: space-between; align-items: center; background-color: #080808; }
+.logo { color: #ffffff; font-size: 15px; font-weight: bold; }
+.connection { color: #ff3154; font-size: 12px; }
+.viewer { width: 100%; flex: 1; position: relative; background-color: #151515; }
+.poster { position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; object-fit: cover; }
+.poster-empty { position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; justify-content: center; align-items: center; background-color: #171717; }
+.empty-icon { color: #ff3154; font-size: 34px; }
+.empty-title { color: #ffffff; font-size: 11px; font-weight: bold; margin-top: 9px; }
+.empty-sub { color: #aaaaaa; font-size: 9px; margin-top: 4px; }
+.shade { position: absolute; left: 0px; bottom: 0px; width: 100%; height: 46%; background-image: linear-gradient(transparent, rgba(0,0,0,0.92)); }
+.video-info { position: absolute; left: 12px; right: 48px; bottom: 42px; flex-direction: column; }
+.channel { color: #ffffff; font-size: 10px; font-weight: bold; }
+.video-title { color: #ffffff; font-size: 11px; margin-top: 4px; max-lines: 3; }
+.playback-note { color: #ffb8c4; font-size: 7px; margin-top: 6px; }
+.actions { position: absolute; right: 7px; bottom: 65px; width: 36px; flex-direction: column; align-items: center; }
+.action { width: 36px; height: 48px; justify-content: center; align-items: center; }
+.action-icon { color: #ffffff; font-size: 20px; font-weight: bold; }
+.action-count { color: #ffffff; font-size: 8px; margin-top: 1px; }
+.action-label { color: #ffffff; font-size: 7px; margin-top: 2px; }
+.bottom-controls { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 27px; flex-direction: row; align-items: center; justify-content: space-between; }
+.nav-button { color: #ffffff; background-color: rgba(25,25,25,0.85); font-size: 9px; padding: 6px; border-radius: 12px; }
+.position { color: #dddddd; font-size: 8px; }
+.comments-panel { position: absolute; left: 0px; right: 0px; bottom: 0px; height: 72%; background-color: #111111; border-top-left-radius: 14px; border-top-right-radius: 14px; padding: 10px; }
+.comments-top { height: 24px; flex-direction: row; justify-content: space-between; align-items: center; }
+.comments-title { color: #ffffff; font-size: 12px; font-weight: bold; }
+.close { color: #ff5574; font-size: 9px; }
+.comments-list { width: 100%; flex: 1; margin-top: 5px; }
+.comment { width: 100%; padding: 6px 2px; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
+.author { color: #ff7890; font-size: 9px; }
+.comment-text { color: #eeeeee; font-size: 10px; margin-top: 3px; }
+.comments-empty { color: #aaaaaa; font-size: 10px; margin-top: 12px; }
 </style>
 <script>
 import link from '../../common/scripts/interconnect'
 export default {
   private: {
-    connected: false,
-    videoList: [],
-    commentList: [],
-    selectedTitle: 'Select a Short',
-    selectedVideoId: '',
-    commentsLabel: 'Select video',
-    showAnimationTest: true,
-    animationFrames: [
-      { src: '/common/anim/frame-01.png' },
-      { src: '/common/anim/frame-02.png' },
-      { src: '/common/anim/frame-03.png' },
-      { src: '/common/anim/frame-04.png' },
-      { src: '/common/anim/frame-05.png' },
-      { src: '/common/anim/frame-06.png' }
-    ]
+    connected: false, videoList: [], videoIndex: 0, currentThumbnail: '',
+    currentTitle: 'Find Shorts on your phone', currentChannel: 'YOUTUBE MINI',
+    currentLikeCount: '—', currentCommentCount: '—', videoPosition: '0 / 0',
+    selectedVideoId: '', commentList: [], commentsLabel: 'Select a Short to load comments',
+    commentsVisible: false
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
       if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
         this.videoList = Array.isArray(payload.items) ? payload.items : []
+        this.videoIndex = 0
+        this.showCurrentVideo()
       }
       if (event.message && event.message.type === 'video.search.error') {
-        this.videoList = []
+        const payload = event.message.payload || {}
+        this.currentTitle = payload.message || 'Search failed'
+        this.currentThumbnail = ''
       }
       if (event.message && event.message.type === 'comments.items') {
         const payload = event.message.payload || {}
         this.commentList = Array.isArray(payload.items) ? payload.items : []
-        this.commentsLabel = payload.error || (this.commentList.length + ' loaded')
+        this.commentsLabel = payload.error || (this.commentList.length + ' comments loaded')
       }
       if (event.state) this.connected = event.state === 'connected'
     })
     link.checkConnection()
   },
-  onDestroy() {
-    if (this.unsubscribeLink) this.unsubscribeLink()
+  onDestroy() { if (this.unsubscribeLink) this.unsubscribeLink() },
+  showCurrentVideo() {
+    const item = this.videoList[this.videoIndex]
+    if (!item) {
+      this.currentThumbnail = ''; this.currentTitle = 'Search Shorts on your phone'
+      this.currentChannel = 'YOUTUBE MINI'; this.currentLikeCount = '—'
+      this.currentCommentCount = '—'; this.selectedVideoId = ''; this.videoPosition = '0 / 0'
+      return
+    }
+    this.currentThumbnail = item.thumbnailUrl || ''
+    this.currentTitle = item.title || 'Short'
+    this.currentChannel = item.channelTitle || ''
+    this.currentLikeCount = item.likeCount || '—'
+    this.currentCommentCount = item.commentCount || '—'
+    this.selectedVideoId = item.videoId || ''
+    this.videoPosition = (this.videoIndex + 1) + ' / ' + this.videoList.length
+    this.commentList = []; this.commentsLabel = 'Loading comments...'
+    if (this.selectedVideoId) {
+      link.send('video.select', { videoId: this.selectedVideoId, title: this.currentTitle, channelTitle: this.currentChannel, thumbnailUrl: this.currentThumbnail, likeCount: this.currentLikeCount, commentCount: this.currentCommentCount })
+      link.send('comments.load', { videoId: this.selectedVideoId })
+    }
   },
-  toggleAnimationTest() {
-    this.showAnimationTest = !this.showAnimationTest
-  },
-  startAnimation() {
-    this.$element('shortsAnimator').start()
-  },
-  pauseAnimation() {
-    this.$element('shortsAnimator').pause()
-  },
-  resumeAnimation() {
-    this.$element('shortsAnimator').resume()
-  },
-  selectResult(item) {
-    if (!item || !item.videoId) return
-    this.selectedVideoId = item.videoId
-    this.selectedTitle = item.title || 'Short selected'
-    this.commentList = []
-    this.commentsLabel = 'Loading...'
-    link.send('video.select', {
-      videoId: item.videoId,
-      title: this.selectedTitle,
-      channelTitle: item.channelTitle || '',
-      thumbnailUrl: item.thumbnailUrl || '',
-      likeCount: item.likeCount || '—',
-      commentCount: item.commentCount || '—'
-    })
-    link.send('comments.load', { videoId: item.videoId })
-  },
-  openVideoOnPhone() {
-    if (!this.selectedVideoId) return
-    link.send('video.open', { videoId: this.selectedVideoId })
-  }
+  previousVideo() { if (!this.videoList.length) return; this.videoIndex = (this.videoIndex - 1 + this.videoList.length) % this.videoList.length; this.showCurrentVideo() },
+  nextVideo() { if (!this.videoList.length) return; this.videoIndex = (this.videoIndex + 1) % this.videoList.length; this.showCurrentVideo() },
+  showComments() { if (this.selectedVideoId) this.commentsVisible = true },
+  hideComments() { this.commentsVisible = false },
+  openVideoOnPhone() { if (this.selectedVideoId) link.send('video.open', { videoId: this.selectedVideoId }) }
 }
 </script>

@@ -1,46 +1,56 @@
 <template>
   <div class="page">
-    <div class="header">
-      <text class="logo">SHORTS</text>
-      <text class="status">{{connected ? 'ONLINE' : 'OFFLINE'}}</text>
+    <div class="top">
+      <text class="brand">SHORTS</text>
+      <text class="state">{{connected ? '●' : '○'}}</text>
     </div>
-    <text class="hint">SEARCH ON PHONE</text>
-    <text class="subhint">Results appear here automatically</text>
-    <list class="results" bounces="true">
-      <list-item for="{{videoList}}" tid="videoId" class="result" type="video" @click="selectResult($item)">
-        <text class="result-title">{{$item.title}}</text>
-        <text class="result-channel">{{$item.channelTitle}}</text>
+    <text class="section">FEED</text>
+    <list class="feed" bounces="true">
+      <list-item for="{{videoList}}" tid="videoId" class="video" type="video" @click="selectResult($item)">
+        <text class="video-title">{{$item.title}}</text>
+        <text class="meta">{{$item.channelTitle}}</text>
+        <text class="stats">♥ {{$item.likeCount}}   COMMENTS {{$item.commentCount}}</text>
       </list-item>
     </list>
-    <text if="{{videoList.length === 0}}" class="empty">NO RESULTS YET</text>
-    <div class="selected">
-      <text class="selected-label">SELECTED</text>
-      <text class="selected-title">{{videoTitle}}</text>
+    <text if="{{videoList.length === 0}}" class="empty">SEARCH ON PHONE</text>
+    <div class="comments-head">
+      <text class="section">COMMENTS</text>
+      <text class="meta">{{commentsLabel}}</text>
     </div>
-    <div class="actions">
-      <text class="action primary" @click="openVideoOnPhone">OPEN ON PHONE</text>
-      <text class="action" @click="retryConnection">RETRY</text>
+    <list class="comments" bounces="true">
+      <list-item for="{{commentList}}" tid="index" class="comment" type="comment">
+        <text class="author">{{$item.author}}</text>
+        <text class="comment-text">{{$item.text}}</text>
+      </list-item>
+    </list>
+    <text if="{{commentList.length === 0}}" class="empty-comment">Tap a video to load comments</text>
+    <div class="bottom">
+      <text class="selected">{{selectedTitle}}</text>
+      <text class="open" @click="openVideoOnPhone">OPEN ON PHONE</text>
     </div>
   </div>
 </template>
 <style>
-.page { width: 100%; height: 100%; padding: 10px; background-color: #080808; flex-direction: column; }
-.header { height: 28px; flex-direction: row; justify-content: space-between; align-items: center; }
-.logo { color: #ffffff; font-size: 19px; font-weight: bold; }
-.status { color: #ff3655; font-size: 11px; font-weight: bold; }
-.hint { color: #ffffff; font-size: 14px; font-weight: bold; margin-top: 5px; }
-.subhint { color: #999999; font-size: 10px; margin-top: 2px; }
-.results { width: 100%; flex: 1; margin-top: 7px; }
-.result { width: 100%; height: 47px; padding-left: 8px; padding-right: 8px; justify-content: center; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
-.result-title { color: #ffffff; font-size: 12px; }
-.result-channel { color: #999999; font-size: 9px; margin-top: 2px; }
-.empty { color: #777777; font-size: 11px; text-align: center; margin-top: 8px; }
-.selected { height: 38px; padding-left: 7px; justify-content: center; flex-direction: column; background-color: #191919; border-radius: 7px; }
-.selected-label { color: #ff3655; font-size: 8px; font-weight: bold; }
-.selected-title { color: #ffffff; font-size: 10px; margin-top: 2px; }
-.actions { height: 39px; flex-direction: row; margin-top: 6px; }
-.action { flex: 1; height: 36px; margin-left: 3px; margin-right: 3px; border-radius: 8px; background-color: #292929; color: #ffffff; text-align: center; font-size: 11px; padding-top: 11px; font-weight: bold; }
-.primary { background-color: #e9003d; }
+.page { width: 100%; height: 100%; padding: 9px; background-color: #080808; flex-direction: column; }
+.top { height: 25px; flex-direction: row; justify-content: space-between; align-items: center; }
+.brand { color: #ffffff; font-size: 18px; font-weight: bold; }
+.state { color: #ff3154; font-size: 15px; }
+.section { color: #ff3154; font-size: 10px; font-weight: bold; margin-top: 3px; }
+.feed { width: 100%; height: 42%; margin-top: 3px; }
+.video { width: 100%; height: 48px; padding-left: 5px; padding-right: 5px; justify-content: center; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #303030; }
+.video-title { color: #ffffff; font-size: 11px; max-lines: 2; }
+.meta { color: #aaaaaa; font-size: 9px; margin-top: 2px; }
+.stats { color: #dddddd; font-size: 9px; margin-top: 2px; }
+.empty { color: #888888; font-size: 10px; text-align: center; margin-top: 8px; }
+.comments-head { flex-direction: row; justify-content: space-between; align-items: center; height: 18px; }
+.comments { width: 100%; flex: 1; }
+.comment { width: 100%; padding: 4px; flex-direction: column; border-bottom-width: 1px; border-bottom-color: #292929; }
+.author { color: #ff6b82; font-size: 9px; }
+.comment-text { color: #eeeeee; font-size: 10px; margin-top: 2px; }
+.empty-comment { color: #777777; font-size: 9px; text-align: center; margin-top: 5px; }
+.bottom { height: 35px; flex-direction: row; justify-content: space-between; align-items: center; }
+.selected { color: #dddddd; font-size: 9px; max-lines: 1; flex: 1; }
+.open { color: #ffffff; background-color: #e9003d; font-size: 9px; padding: 7px; border-radius: 6px; }
 </style>
 <script>
 import link from '../../common/scripts/interconnect'
@@ -48,9 +58,10 @@ export default {
   private: {
     connected: false,
     videoList: [],
-    videoTitle: 'Nothing selected',
+    commentList: [],
+    selectedTitle: 'Select a Short',
     selectedVideoId: '',
-    selectedThumbnailUrl: ''
+    commentsLabel: 'Select video'
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -61,6 +72,11 @@ export default {
       if (event.message && event.message.type === 'video.search.error') {
         this.videoList = []
       }
+      if (event.message && event.message.type === 'comments.items') {
+        const payload = event.message.payload || {}
+        this.commentList = Array.isArray(payload.items) ? payload.items : []
+        this.commentsLabel = payload.error || (this.commentList.length + ' loaded')
+      }
       if (event.state) this.connected = event.state === 'connected'
     })
     link.checkConnection()
@@ -68,18 +84,21 @@ export default {
   onDestroy() {
     if (this.unsubscribeLink) this.unsubscribeLink()
   },
-  retryConnection() { link.checkConnection() },
   selectResult(item) {
     if (!item || !item.videoId) return
     this.selectedVideoId = item.videoId
-    this.videoTitle = item.title || 'Short selected'
-    this.selectedThumbnailUrl = item.thumbnailUrl || ''
+    this.selectedTitle = item.title || 'Short selected'
+    this.commentList = []
+    this.commentsLabel = 'Loading...'
     link.send('video.select', {
       videoId: item.videoId,
-      title: this.videoTitle,
+      title: this.selectedTitle,
       channelTitle: item.channelTitle || '',
-      thumbnailUrl: this.selectedThumbnailUrl
+      thumbnailUrl: item.thumbnailUrl || '',
+      likeCount: item.likeCount || '—',
+      commentCount: item.commentCount || '—'
     })
+    link.send('comments.load', { videoId: item.videoId })
   },
   openVideoOnPhone() {
     if (!this.selectedVideoId) return

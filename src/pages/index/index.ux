@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <div class="topbar"><text class="logo">SHORTS</text><text class="connection">{{connected ? '●' : '○'}}</text></div>
+    <div class="topbar"><text class="logo">SHORTS</text><div class="topbar-right"><text class="system-open" @click="toggleSystemPanel">SYS</text><text class="connection">{{connected ? '●' : '○'}}</text></div></div>
     <div class="viewer" @swipe="handleSwipe">
       <image if="{{currentFrameSource}}" class="poster" src="{{currentFrameSource}}" />
       <image if="{{!currentFrameSource && currentThumbnail}}" class="poster" src="{{currentThumbnail}}" />
@@ -29,12 +29,25 @@
       </list>
       <div if="{{commentList.length === 0}}" class="comments-empty-wrap"><text class="comments-empty">{{commentsLabel}}</text><text class="retry-comments" @click="reloadComments">↻ TAP TO RETRY</text></div>
     </div>
+    <div if="{{systemPanelVisible}}" class="system-panel">
+      <div class="system-header"><text class="system-title">DEVICE DIAGNOSTICS</text><text class="close" @click="toggleSystemPanel">CLOSE ×</text></div>
+      <text class="system-status">LINK: {{connected ? "CONNECTED" : "DISCONNECTED"}}</text>
+      <text class="system-status">VIDEO FRAMES: {{frameWriteCount}}  •  QUEUE DROPS: {{frameDropCount}}</text>
+      <text class="system-status">WRITE ERRORS: {{frameWriteErrors}}  •  STREAM: {{streamActive ? "ACTIVE" : "IDLE"}}</text>
+      <text class="system-caption">APP LOG · LAST 6 EVENTS</text>
+      <list class="system-log-list" bounces="false">
+        <list-item for="{{systemLogs}}" tid="index" class="system-log"><text class="system-log-text">{{$item}}</text></list-item>
+      </list>
+      <text class="system-footnote">App diagnostics only. Watch firmware is unchanged.</text>
+    </div>
   </div>
 </template>
 <style>
 .page { width: 100%; height: 100%; background-color: #050505; flex-direction: column; }
 .topbar { height: 27px; padding-left: 12px; padding-right: 12px; flex-direction: row; justify-content: space-between; align-items: center; background-color: #080808; }
 .logo { color: #ffffff; font-size: 15px; font-weight: bold; }
+.topbar-right { flex-direction: row; align-items: center; }
+.system-open { color: #ff9aab; font-size: 9px; font-weight: bold; padding: 5px 8px; margin-right: 7px; background-color: #24151a; border-radius: 10px; }
 .connection { color: #ff3154; font-size: 12px; }
 .viewer { width: 100%; flex: 1; position: relative; background-color: #151515; }
 .poster { position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; object-fit: cover; }
@@ -56,6 +69,15 @@
 .bottom-controls { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 27px; flex-direction: row; align-items: center; justify-content: space-between; }
 .nav-button { color: #ffffff; background-color: rgba(25,25,25,0.85); font-size: 9px; padding: 6px; border-radius: 12px; }
 .position { color: #dddddd; font-size: 8px; }
+.system-panel { position: absolute; left: 0px; right: 0px; top: 27px; bottom: 0px; background-color: #101319; padding: 12px; flex-direction: column; }
+.system-header { height: 25px; flex-direction: row; justify-content: space-between; align-items: center; }
+.system-title { color: #ffffff; font-size: 11px; font-weight: bold; }
+.system-status { color: #b9c5d5; font-size: 9px; margin-top: 9px; }
+.system-caption { color: #ff9aab; font-size: 8px; font-weight: bold; margin-top: 15px; }
+.system-log-list { width: 100%; flex: 1; margin-top: 5px; }
+.system-log { padding: 7px 3px; border-bottom-width: 1px; border-bottom-color: #29303a; }
+.system-log-text { color: #e1e6ed; font-size: 9px; }
+.system-footnote { color: #778393; font-size: 7px; margin-top: 8px; }
 .comments-panel { position: absolute; left: 0px; right: 0px; bottom: 0px; height: 84%; background-color: #111111; border-top-left-radius: 14px; border-top-right-radius: 14px; padding: 10px; }
 .comments-top { height: 24px; flex-direction: row; justify-content: space-between; align-items: center; }
 .comments-title { color: #ffffff; font-size: 12px; font-weight: bold; }
@@ -79,7 +101,9 @@ export default {
     selectedVideoId: '', commentList: [], commentsLabel: 'Select a Short to load comments',
     commentsVisible: false, currentFrameSource: '', streamActive: false,
     playing: false, frameBufferIndex: 0, currentStreamId: '',
-    frameWriteQueue: [], frameWriteBusy: false, frameUris: []
+    frameWriteQueue: [], frameWriteBusy: false, frameUris: [],
+    systemPanelVisible: false, systemLogs: [], frameWriteCount: 0,
+    frameDropCount: 0, frameWriteErrors: 0
   },
   onInit() {
     this.unsubscribeLink = link.subscribe((event) => {
@@ -87,6 +111,10 @@ export default {
         const payload = event.message.payload || {}
         this.streamActive = true
         this.playing = true
+        this.frameWriteCount = 0
+        this.frameDropCount = 0
+        this.frameWriteErrors = 0
+        this.logSystemEvent("Video stream started")
         this.frameBufferIndex = 0
         this.frameWriteQueue = []
         this.currentStreamId = payload.streamId || ('s' + Date.now())
@@ -107,12 +135,14 @@ export default {
         this.streamActive = false
         this.playing = false
         this.frameWriteQueue = []
+        this.logSystemEvent("Video stream ended · " + this.frameWriteCount + " frames")
       }
       if (event.message && event.message.type === 'video.stream.error') {
         const payload = event.message.payload || {}
         this.streamActive = false
         this.playing = false
         this.currentTitle = payload.message || 'Video transfer failed'
+        this.logSystemEvent("Stream error: " + this.currentTitle)
       }
       if (event.message && event.message.type === 'video.results') {
         const payload = event.message.payload || {}
@@ -130,15 +160,35 @@ export default {
         this.commentList = Array.isArray(payload.items) ? payload.items : []
         this.commentsLabel = payload.error || (this.commentList.length > 0 ? (this.commentList.length + ' comments loaded') : 'No public comments for this video')
       }
-      if (event.state) this.connected = event.state === 'connected'
+      if (event.state) {
+        const wasConnected = this.connected
+        this.connected = event.state === 'connected'
+        if (wasConnected !== this.connected) this.logSystemEvent(this.connected ? "Phone connected" : "Phone disconnected")
+      }
     })
+    this.logSystemEvent("YouTube Mini started")
     link.checkConnection()
   },
   onDestroy() { if (this.unsubscribeLink) this.unsubscribeLink() },
+  logSystemEvent(message) {
+    const stamp = new Date().toTimeString().slice(0, 8)
+    this.systemLogs.unshift(stamp + "  " + String(message).slice(0, 58))
+    if (this.systemLogs.length > 6) this.systemLogs.splice(6)
+  },
+  toggleSystemPanel() {
+    this.systemPanelVisible = !this.systemPanelVisible
+    if (this.systemPanelVisible) {
+      this.commentsVisible = false
+      this.logSystemEvent("Diagnostics opened")
+    }
+  },
   enqueueVideoFrame(encoded, sequence) {
     // Bound latency when incoming frames exceed the watch's write/display rate.
     // Drop stale queued frames and keep the newest frame.
-    if (this.frameWriteQueue.length >= 2) this.frameWriteQueue.shift()
+    if (this.frameWriteQueue.length >= 2) {
+      this.frameWriteQueue.shift()
+      this.frameDropCount += 1
+    }
     this.frameWriteQueue.push({ encoded, sequence })
     if (!this.frameWriteBusy) this.writeNextVideoFrame()
   },
@@ -175,6 +225,7 @@ export default {
             file.delete({ uri: obsolete, fail: () => {} })
           }
           this.frameBufferIndex += 1
+          this.frameWriteCount += 1
         } else {
           file.delete({ uri, fail: () => {} })
         }
@@ -186,6 +237,8 @@ export default {
         this.streamActive = false
         this.playing = false
         this.frameWriteQueue = []
+        this.frameWriteErrors += 1
+        this.logSystemEvent("Frame write failed: " + code)
         console.error('Video frame write failed', error, code)
       }
     })
@@ -229,6 +282,7 @@ export default {
   },
   showComments() {
     if (!this.selectedVideoId) return
+    this.systemPanelVisible = false
     this.commentsVisible = true
     this.commentsLabel = 'Loading comments...'
     this.commentList = []

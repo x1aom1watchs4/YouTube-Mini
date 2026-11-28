@@ -49,3 +49,7 @@ For standard Watch S4 M2425W1, no supported public video-playback API for Vela Q
 
 1. Install the latest APK and RPK on the paired phone and Watch S4; verify search, selection, comments, and phone handoff.
 2. Keep watch-side video marked as unsupported unless Xiaomi exposes a supported Vela video API or a working native bridge is built and tested on the physical M2425W1.
+
+## Watch diagnostics and safe optimization
+
+Version 0.2.0 adds a lightweight on-watch diagnostics panel (SYS): connection state, successfully written frame count, dropped queued frames, write errors, and the last six app events. The log is bounded and event-driven; it does not poll continuously or change the watch firmware. This is application-level monitoring, not a Wear OS emulator or an operating-system replacement. The watch-side frame queue remains bounded to limit latency and memory use.
